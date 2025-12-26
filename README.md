@@ -1,18 +1,65 @@
-## Getting Started
+# Java Web Application 学習用プロジェクト
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+このプロジェクトは、Java と 埋め込みTomcat (Embedded Tomcat) を使用して作成したシンプルなWebアプリケーションです。
+ユーザー名の登録、一覧表示、削除を行うことができます。
 
-## Folder Structure
+## プロジェクトの概要
 
-The workspace contains two folders by default, where:
+- **機能**: ユーザー名のCRUD（作成、読み取り、削除）機能
+- **データベース**: H2 Database（ファイルとして保存される軽量DB）
+- **サーバー**: Apache Tomcat（Javaプログラム内で起動する埋め込みモード）
+- **ビルドツール**: Maven
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+## 実行方法
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
+ターミナルで以下のコマンドを実行してサーバーを起動します。
 
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+```bash
+mvn clean compile exec:java -Dexec.mainClass="App"
+```
 
-## Dependency Management
+起動後、ブラウザで `http://localhost:8080/` にアクセスしてください。
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+## ファイル構成と役割
+
+このプロジェクトの主要なファイルの役割について解説します。
+
+### 1. Java ソースコード (`src/main/java/`)
+
+プログラムのロジック部分です。
+
+- **`App.java`** (メインクラス)
+    - **役割**: アプリケーションの起動スイッチです。
+    - **処理内容**:
+        1. H2データベースの初期化（テーブル作成）。
+        2. Tomcatサーバーの作成と設定（ポート8080など）。
+        3. サーブレット（機能）の登録とURLのマッピング。
+        4. サーバーの起動待機。
+
+- **`FormServlet.java`**
+    - **URL**: `/submit` (POST)
+    - **役割**: ユーザー登録処理を行います。
+    - **処理内容**: 入力チェック、重複チェック、DBへの保存、リダイレクト。
+
+- **`ListServlet.java`**
+    - **URL**: `/list` (GET)
+    - **役割**: 登録済みユーザーの一覧を取得します。
+    - **処理内容**: DBから全データを取得し、JSPへ渡します。
+
+- **`DeleteServlet.java`**
+    - **URL**: `/delete` (POST)
+    - **役割**: ユーザー削除処理を行います。
+    - **処理内容**: 指定された名前をDBから削除し、一覧へリダイレクトします。
+
+### 2. Webリソース (`src/main/webapp/`)
+
+画面表示（フロントエンド）に関するファイルです。
+
+- **`index.jsp`**: トップページ兼入力フォーム。エラーメッセージ表示機能付き。
+- **`result.jsp`**: 登録完了画面。
+- **`list.jsp`**: ユーザー一覧画面。削除ボタン付き。
+- **`css/style.css`**: アプリケーション全体のデザイン定義。
+
+### 3. 設定ファイル
+
+- **`pom.xml`**: Mavenの設定ファイル。TomcatやH2 Databaseなどのライブラリを管理しています。

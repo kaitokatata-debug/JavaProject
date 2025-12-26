@@ -1,30 +1,39 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <!-- POMモデルのバージョン（通常は4.0.0で固定） -->
   <modelVersion>4.0.0</modelVersion>
 
+  <!-- プロジェクトの基本情報（座標） -->
+  <!-- グループID: 組織や会社の識別子（Javaのパッケージ名のように逆ドメイン形式が一般的） -->
   <groupId>com.example</groupId>
+  <!-- アーティファクトID: プロジェクト（成果物）の名前 -->
   <artifactId>my-tomcat-app</artifactId>
+  <!-- バージョン: プロジェクトのバージョン（SNAPSHOTは開発中という意味） -->
   <version>1.0-SNAPSHOT</version>
 
+  <!-- 設定プロパティ -->
   <properties>
+    <!-- ソースコードのJavaバージョン -->
     <maven.compiler.source>17</maven.compiler.source>
+    <!-- コンパイル後のJavaバージョン -->
     <maven.compiler.target>17</maven.compiler.target>
   </properties>
 
+  <!-- 依存関係（使用する外部ライブラリのリスト） -->
   <dependencies>
-    <!-- Embedded Tomcat Core -->
+    <!-- Embedded Tomcat Core: Tomcatサーバーの本体 -->
     <dependency>
       <groupId>org.apache.tomcat.embed</groupId>
       <artifactId>tomcat-embed-core</artifactId>
       <version>10.1.18</version>
     </dependency>
-    <!-- JSP Engine (Jasper) -->
+    <!-- JSP Engine (Jasper): JSPファイルをHTMLに変換するエンジン -->
     <dependency>
       <groupId>org.apache.tomcat.embed</groupId>
       <artifactId>tomcat-embed-jasper</artifactId>
       <version>10.1.18</version>
     </dependency>
-    <!-- H2 Database -->
+    <!-- H2 Database: ファイルとして保存できる軽量データベース -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
