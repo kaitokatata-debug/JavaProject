@@ -10,15 +10,18 @@
     <ul>
     <%
         // サーブレットから渡された "users" というデータ（リスト）を受け取る
-        List<String> users = (List<String>) request.getAttribute("users");
+        // String[] のリストとして受け取る
+        List<String[]> users = (List<String[]>) request.getAttribute("users");
         
         // データが存在する場合のみループ処理を行う
         if (users != null) {
-            for (String userName : users) {
+            for (String[] user : users) {
+                String userName = user[0]; // 0番目が名前
+                String score = user[1];    // 1番目がスコア
     %>
                 <li>
                     <%-- ユーザー名を表示 --%>
-                    <%= userName %>
+                    <%= userName %> <span style="font-size: 0.9em; color: #666;">(Score: <%= score %>)</span>
                     
                     <%-- 削除ボタンのフォーム --%>
                     <%-- style="display:inline;" でボタンを名前の横に並べる --%>
@@ -34,6 +37,8 @@
         }
     %>
     </ul>
-    <a href="index.jsp">トップへ戻る</a>
+    <a href="result.jsp">結果画面へ戻る</a>
+    <br>
+    <a href="logout">ログアウト</a>
 </body>
 </html>

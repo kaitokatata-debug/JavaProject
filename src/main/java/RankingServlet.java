@@ -10,27 +10,25 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-public class ListServlet extends HttpServlet {
+public class RankingServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        // 名前とスコアをセットで扱うため、String配列のリストに変更
-        List<String[]> userList = new ArrayList<>();
+        List<String> rankingList = new ArrayList<>();
         
-        // データベースから全ユーザー名とスコアを取得
+        // スコアの高い順にトップ10を取得
         try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "");
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT name, score FROM users")) {
+             ResultSet rs = stmt.executeQuery("SELECT name, score FROM users ORDER BY score DESC LIMIT 10")) {
             
             while (rs.next()) {
-                // { "名前", "スコア" } という配列を作ってリストに追加
-                userList.add(new String[] { rs.getString("name"), String.valueOf(rs.getInt("score")) });
+                // 表示用に "名前 (スコア点)" という文字列を作る
+                rankingList.add(rs.getString("name") + " (" + rs.getInt("score") + "点)");
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        // 取得したリストをリクエストにセットして、list.jsp に転送
-        req.setAttribute("users", userList);
-        req.getRequestDispatcher("list.jsp").forward(req, resp);
+        req.setAttribute("rankings", rankingList);
+        req.getRequestDispatcher("ranking.jsp").forward(req, resp);
     }
 }

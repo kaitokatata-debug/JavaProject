@@ -1,6 +1,4 @@
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -50,10 +48,11 @@ public class FormServlet extends HttpServlet {
                 return;
             }
 
-            // OKなら結果画面へ「リダイレクト」（URLを変えて移動）させる
-            // 日本語が含まれる可能性があるため、URLエンコードを行う
-            String encodedName = URLEncoder.encode(name, StandardCharsets.UTF_8);
-            resp.sendRedirect("result.jsp?username=" + encodedName);
+            // セッションに名前を保存
+            req.getSession().setAttribute("username", name);
+
+            // OKなら結果画面へ「リダイレクト」
+            resp.sendRedirect("result.jsp");
         }
     }
 }

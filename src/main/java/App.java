@@ -14,7 +14,10 @@ public class App {
         // jdbc:h2:./mydb はプロジェクトフォルダに mydb というファイルを作る設定です
         try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "")) {
             Statement stmt = conn.createStatement();
-            stmt.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255))");
+            // usersテーブルに score カラムを追加（デフォルト値 0）
+            stmt.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), score INT DEFAULT 0)");
+            // 既存のDBファイルを使っている場合のために、カラム追加を試みる（既に存在すれば何もしない）
+            stmt.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS score INT DEFAULT 0");
             System.out.println("Database initialized.");
         } catch (Exception e) {
             e.printStackTrace();
@@ -56,6 +59,18 @@ public class App {
         // DeleteServletを登録して、/delete というパスに割り当てる
         Tomcat.addServlet(ctx, "deleteServlet", new DeleteServlet());
         ctx.addServletMappingDecoded("/delete", "deleteServlet");
+
+        // ScoreServlet (スコア保存)
+        Tomcat.addServlet(ctx, "scoreServlet", new ScoreServlet());
+        ctx.addServletMappingDecoded("/saveScore", "scoreServlet");
+
+        // RankingServlet (ランキング表示)
+        Tomcat.addServlet(ctx, "rankingServlet", new RankingServlet());
+        ctx.addServletMappingDecoded("/ranking", "rankingServlet");
+
+        // LogoutServlet (ログアウト)
+        Tomcat.addServlet(ctx, "logoutServlet", new LogoutServlet());
+        ctx.addServletMappingDecoded("/logout", "logoutServlet");
 
         System.out.println("Tomcat started on port 8080");
         
