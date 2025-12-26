@@ -1,12 +1,16 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <html>
+<head>
+    <title>入力フォーム</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
 <body>
     <h1>Hello from JSP!</h1>
     <p>Current time: <%= new java.util.Date() %></p>
 
     <%-- エラーメッセージがあれば赤字で表示 --%>
     <% if (request.getAttribute("errorMessage") != null) { %>
-        <p style="color: red;"><%= request.getAttribute("errorMessage") %></p>
+        <p class="error"><%= request.getAttribute("errorMessage") %></p>
     <% } %>
 
     <form action="submit" method="post">

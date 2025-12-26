@@ -53,6 +53,10 @@ public class App {
         Tomcat.addServlet(ctx, "listServlet", new ListServlet());
         ctx.addServletMappingDecoded("/list", "listServlet");
 
+        // DeleteServletを登録して、/delete というパスに割り当てる
+        Tomcat.addServlet(ctx, "deleteServlet", new DeleteServlet());
+        ctx.addServletMappingDecoded("/delete", "deleteServlet");
+
         System.out.println("Tomcat started on port 8080");
         
         // サーバーの起動と待機

@@ -4,6 +4,10 @@
     String name = request.getParameter("username");
 %>
 <html>
+<head>
+    <title>結果画面</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
 <body>
     <h1>結果画面</h1>
     <p>こんにちは、<%= name == null ? "ゲスト" : name %> さん！</p>
