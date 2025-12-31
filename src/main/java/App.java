@@ -18,6 +18,8 @@ public class App {
             stmt.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), score INT DEFAULT 0)");
             // 既存のDBファイルを使っている場合のために、カラム追加を試みる（既に存在すれば何もしない）
             stmt.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS score INT DEFAULT 0");
+            // スコアランキング用のテーブル作成
+            stmt.execute("CREATE TABLE IF NOT EXISTS rankings (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT, game_name VARCHAR(255), score INT)");
             System.out.println("Database initialized.");
         } catch (Exception e) {
             e.printStackTrace();
@@ -63,10 +65,6 @@ public class App {
         // ScoreServlet (スコア保存)
         Tomcat.addServlet(ctx, "scoreServlet", new ScoreServlet());
         ctx.addServletMappingDecoded("/saveScore", "scoreServlet");
-
-        // RankingServlet (ランキング表示)
-        Tomcat.addServlet(ctx, "rankingServlet", new RankingServlet());
-        ctx.addServletMappingDecoded("/ranking", "rankingServlet");
 
         // LogoutServlet (ログアウト)
         Tomcat.addServlet(ctx, "logoutServlet", new LogoutServlet());

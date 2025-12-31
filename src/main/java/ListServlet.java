@@ -19,11 +19,27 @@ public class ListServlet extends HttpServlet {
         // データベースから全ユーザー名とスコアを取得
         try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "");
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT name, score FROM users")) {
+             ResultSet rs = stmt.executeQuery("SELECT u.name, COALESCE(MAX(r.score), 0) as score FROM users u LEFT JOIN rankings r ON u.id = r.user_id GROUP BY u.id, u.name ORDER BY score DESC")) {
             
+            int maxScore = -1;
+            boolean isFirst = true;
+
             while (rs.next()) {
-                // { "名前", "スコア" } という配列を作ってリストに追加
-                userList.add(new String[] { rs.getString("name"), String.valueOf(rs.getInt("score")) });
+                String name = rs.getString("name");
+                int score = rs.getInt("score");
+
+                // 1位（最初のレコード）のスコアを基準にする
+                if (isFirst) {
+                    maxScore = score;
+                    isFirst = false;
+                }
+
+                // 最高スコアと同じなら王冠をつける（同率1位対応）
+                String crown = (score == maxScore) ? "👑 " : "";
+
+                // { "名前", "スコア", "王冠" } という配列を作ってリストに追加
+                // 名前(user[0])はDB操作用にそのまま残し、表示用に王冠(user[2])を渡す
+                userList.add(new String[] { name, String.valueOf(score), crown });
             }
         } catch (Exception e) {
             e.printStackTrace();

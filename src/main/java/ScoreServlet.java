@@ -3,31 +3,60 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 public class ScoreServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         req.setCharacterEncoding("UTF-8");
-        String name = (String) req.getSession().getAttribute("username");
+        HttpSession session = req.getSession();
+        String name = (String) session.getAttribute("username");
+        Integer userId = (Integer) session.getAttribute("userId");
         if (name == null) name = "Guest";
         int score = Integer.parseInt(req.getParameter("score"));
 
-        try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "");
-             PreparedStatement updateStmt = conn.prepareStatement("UPDATE users SET score = ? WHERE name = ?")) {
-            updateStmt.setInt(1, score);
-            updateStmt.setString(2, name);
-            int rows = updateStmt.executeUpdate();
+        try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "")) {
+            // ハイスコアの場合のみ更新する
+            try (PreparedStatement updateStmt = conn.prepareStatement("UPDATE users SET score = ? WHERE name = ? AND score < ?")) {
+                updateStmt.setInt(1, score);
+                updateStmt.setString(2, name);
+                updateStmt.setInt(3, score);
+                int rows = updateStmt.executeUpdate();
 
-            // 更新対象がいなかった場合（未登録ユーザーなど）は新規登録する
-            if (rows == 0) {
-                try (PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO users (name, score) VALUES (?, ?)")) {
-                    insertStmt.setString(1, name);
-                    insertStmt.setInt(2, score);
-                    insertStmt.executeUpdate();
+                // 更新されなかった場合
+                if (rows == 0) {
+                    // ユーザーが存在するか確認
+                    boolean exists = false;
+                    try (PreparedStatement checkStmt = conn.prepareStatement("SELECT 1 FROM users WHERE name = ?")) {
+                        checkStmt.setString(1, name);
+                        try (ResultSet rs = checkStmt.executeQuery()) {
+                            if (rs.next()) exists = true;
+                        }
+                    }
+
+                    // ユーザーが存在しない場合のみ新規登録
+                    if (!exists) {
+                        try (PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO users (name, score) VALUES (?, ?)")) {
+                            insertStmt.setString(1, name);
+                            insertStmt.setInt(2, score);
+                            insertStmt.executeUpdate();
+                        }
+                    }
+                }
+            }
+
+            // ランキングテーブルにも保存
+            if (userId != null) {
+                try (PreparedStatement rankStmt = conn.prepareStatement("INSERT INTO rankings (user_id, game_name, score) VALUES (?, ?, ?)")) {
+                    rankStmt.setInt(1, userId);
+                    rankStmt.setString(2, "BlockBreaker");
+                    rankStmt.setInt(3, score);
+                    rankStmt.executeUpdate();
                 }
             }
         } catch (SQLException e) {
