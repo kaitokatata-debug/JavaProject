@@ -4,6 +4,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,18 @@ public class ScoreServlet extends HttpServlet {
         int score = Integer.parseInt(req.getParameter("score"));
 
         try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "")) {
+            // セッション切れなどでuserIdがない場合、名前からID取得を試みる
+            if (userId == null) {
+                try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM users WHERE name = ?")) {
+                    ps.setString(1, name);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            userId = rs.getInt("id");
+                        }
+                    }
+                }
+            }
+
             // ハイスコアの場合のみ更新する
             try (PreparedStatement updateStmt = conn.prepareStatement("UPDATE users SET score = ? WHERE name = ? AND score < ?")) {
                 updateStmt.setInt(1, score);
@@ -41,10 +54,15 @@ public class ScoreServlet extends HttpServlet {
 
                     // ユーザーが存在しない場合のみ新規登録
                     if (!exists) {
-                        try (PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO users (name, score) VALUES (?, ?)")) {
+                        try (PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO users (name, score) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
                             insertStmt.setString(1, name);
                             insertStmt.setInt(2, score);
                             insertStmt.executeUpdate();
+                            try (ResultSet generatedKeys = insertStmt.getGeneratedKeys()) {
+                                if (generatedKeys.next()) {
+                                    userId = generatedKeys.getInt(1);
+                                }
+                            }
                         }
                     }
                 }
