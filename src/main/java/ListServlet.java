@@ -35,7 +35,7 @@ public class ListServlet extends HttpServlet {
                 }
 
                 // 最高スコアと同じなら王冠をつける（同率1位対応）
-                String crown = (score == maxScore) ? "👑 " : "";
+                String crown = (score == maxScore) ? "\uD83D\uDC51 " : "";
 
                 // { "名前", "スコア", "王冠" } という配列を作ってリストに追加
                 // 名前(user[0])はDB操作用にそのまま残し、表示用に王冠(user[2])を渡す
