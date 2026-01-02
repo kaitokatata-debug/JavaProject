@@ -17,6 +17,9 @@
     <maven.compiler.source>17</maven.compiler.source>
     <!-- コンパイル後のJavaバージョン -->
     <maven.compiler.target>17</maven.compiler.target>
+    <!-- プロジェクトのエンコーディング設定 -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
 
   <!-- 依存関係（使用する外部ライブラリのリスト） -->
