@@ -32,6 +32,8 @@
     <a href="list">一覧を見る</a>
     <br>
     <a href="game.jsp">ブロック崩しで遊ぶ</a>
+    <br>
+    <a href="poker">テキサスホールデムで遊ぶ</a>
 
     <br>
     <a href="logout">ログアウト</a>

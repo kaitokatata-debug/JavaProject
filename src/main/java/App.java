@@ -70,6 +70,10 @@ public class App {
         Tomcat.addServlet(ctx, "logoutServlet", new LogoutServlet());
         ctx.addServletMappingDecoded("/logout", "logoutServlet");
 
+        // PokerServlet (ポーカーゲーム)
+        Tomcat.addServlet(ctx, "pokerServlet", new PokerServlet());
+        ctx.addServletMappingDecoded("/poker", "pokerServlet");
+
         System.out.println("Tomcat started on port 8080");
         
         // サーバーの起動と待機
