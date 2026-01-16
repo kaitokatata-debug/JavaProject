@@ -4,14 +4,26 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import poker.HandEvaluator;
+import poker.Action;
 import poker.Player;
+import poker.State;
 import poker.TexasHoldemGame;
 
+/**
+ * ポーカーゲームのWebインターフェースを提供するサーブレット。
+ * ゲームの進行状況の表示（GET）と、プレイヤーのアクション処理（POST）を行います。
+ * 
+ * <p>POSTリクエストで受け付ける主なアクション（actionパラメータ）:</p>
+ * <ul>
+ *   <li>{@code bet}: 指定された額をベットします（amountパラメータが必要）。</li>
+ *   <li>{@code call}: 現在の最高ベット額に合わせてコール（またはチェック）します。</li>
+ *   <li>{@code fold}: ゲームから降ります。</li>
+ *   <li>{@code allin}: 全チップを賭けます。</li>
+ *   <li>{@code next}: 次のラウンド（ハンド）を開始します。</li>
+ *   <li>{@code reset}: ゲームをリセットして初期状態に戻します。</li>
+ * </ul>
+ */
 public class PokerServlet extends HttpServlet {
-    
-    // ゲームの進行ステージ
-    private enum Stage { PREFLOP, FLOP, TURN, RIVER, SHOWDOWN }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -29,9 +41,15 @@ public class PokerServlet extends HttpServlet {
             game.addPlayer(new Player("CPU", 1000));
             
             session.setAttribute("pokerGame", game);
-            session.setAttribute("pokerStage", Stage.PREFLOP);
             
             game.startNewRound();
+        }
+
+        // エラーメッセージの処理（Flash Scope）
+        String error = (String) session.getAttribute("error");
+        if (error != null) {
+            req.setAttribute("error", error);
+            session.removeAttribute("error");
         }
 
         req.getRequestDispatcher("poker.jsp").forward(req, resp);
@@ -42,7 +60,6 @@ public class PokerServlet extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         HttpSession session = req.getSession();
         TexasHoldemGame game = (TexasHoldemGame) session.getAttribute("pokerGame");
-        Stage stage = (Stage) session.getAttribute("pokerStage");
 
         if (game == null) {
             resp.sendRedirect("poker");
@@ -61,82 +78,88 @@ public class PokerServlet extends HttpServlet {
         }
         
         if ("next".equals(action)) {
+            // どちらかのチップが0になったらゲーム終了（強制終了）
+            if (human.getChips() == 0 || cpu.getChips() == 0) {
+                session.removeAttribute("pokerGame");
+                resp.sendRedirect("result.jsp");
+                return;
+            }
+
             // 次のラウンドへ（ショーダウン後）
             game.startNewRound();
-            session.setAttribute("pokerStage", Stage.PREFLOP);
             resp.sendRedirect("poker");
             return;
         }
 
         // プレイヤーのアクション処理
-        if (stage != Stage.SHOWDOWN) {
+        if (game.getState() != State.SHOWDOWN) {
+            Action playerAction = null;
+
             if ("fold".equals(action)) {
-                game.playerFold(human);
-                game.log(human.getName() + " folds. CPU wins!");
-                // フォールドしたら即終了扱い
-                int pot = game.getPot();
-                cpu.bet(-pot); // ポット獲得の簡易処理（チップを増やす）
-                session.setAttribute("pokerStage", Stage.SHOWDOWN);
+                playerAction = new Action(human, Action.Type.FOLD);
             } else if ("call".equals(action)) {
-                game.playerCall(human);
+                // コールかチェックかを判定
+                int diff = game.getCurrentHighestBet() - human.getCurrentBet();
+                Action.Type type = (diff > 0) ? Action.Type.CALL : Action.Type.CHECK;
+                playerAction = new Action(human, type);
             } else if ("bet".equals(action)) {
-                int amount = Integer.parseInt(req.getParameter("amount"));
-                game.playerBet(human, amount);
+                int amount = 0;
+                try {
+                    amount = Integer.parseInt(req.getParameter("amount"));
+                } catch (NumberFormatException e) {
+                    // 無効な数値
+                }
+                playerAction = new Action(human, Action.Type.BET, amount);
+            } else if ("allin".equals(action)) {
+                playerAction = new Action(human, Action.Type.ALL_IN);
+            }
+
+            if (playerAction != null) {
+                if (!playerAction.validate(game)) {
+                    session.setAttribute("error", "無効なアクションです（チップ不足、またはベット額が不正です）");
+                    resp.sendRedirect("poker");
+                    return;
+                }
+                playerAction.execute(game);
+
+                if ("fold".equals(action)) {
+                    game.executeShowdown();
+                }
             }
 
             // CPUのターン（簡易AI: 常にコール、またはチェック）
-            if (!human.isFolded() && stage != Stage.SHOWDOWN) {
+            if (!human.isFolded() && game.getState() != State.SHOWDOWN) {
                 // CPUは単純にコールまたはチェックする
-                game.playerCall(cpu);
+                cpu.doCall(game);
             }
 
             // ベッティングラウンド終了判定（簡易的に、お互いアクションしたら次へ進むとする）
             if (!human.isFolded()) {
                 game.endBettingRound();
-                stage = advanceStage(game, stage);
-                session.setAttribute("pokerStage", stage);
+
+                // 2人以上残っている場合のみ次のストリートへ
+                if (game.getTable().getActivePlayers().size() > 1) {
+                    // オールイン判定：どちらかのチップが0になっている場合
+                    boolean isAllIn = human.getChips() == 0 || cpu.getChips() == 0;
+
+                    if (isAllIn) {
+                        // オールイン状態なら、ショーダウンまで自動で進める
+                        while (game.getState() != State.SHOWDOWN) {
+                            game.advanceState();
+                        }
+                    } else {
+                        // 通常進行
+                        if (game.getState() == State.RIVER) {
+                            game.executeShowdown();
+                        } else if (game.getState() != State.SHOWDOWN) {
+                            game.advanceState(); // PREFLOP -> FLOP, etc.
+                        }
+                    }
+                }
             }
         }
 
         resp.sendRedirect("poker");
     }
 
-    private Stage advanceStage(TexasHoldemGame game, Stage current) {
-        switch (current) {
-            case PREFLOP:
-                game.dealFlop();
-                return Stage.FLOP;
-            case FLOP:
-                game.dealTurn();
-                return Stage.TURN;
-            case TURN:
-                game.dealRiver();
-                return Stage.RIVER;
-            case RIVER:
-                // ショーダウン処理
-                game.log("=== Showdown ===");
-                HandEvaluator.Hand h1 = HandEvaluator.evaluate(game.getPlayers().get(0).getHoleCards(), game.getCommunityCards());
-                HandEvaluator.Hand h2 = HandEvaluator.evaluate(game.getPlayers().get(1).getHoleCards(), game.getCommunityCards());
-                
-                game.log(game.getPlayers().get(0).getName() + ": " + h1);
-                game.log(game.getPlayers().get(1).getName() + ": " + h2);
-                
-                int result = h1.compareTo(h2);
-                int pot = game.getPot();
-                if (result > 0) {
-                    game.log("Winner: " + game.getPlayers().get(0).getName());
-                    game.getPlayers().get(0).bet(-pot); // チップ返還（簡易）
-                } else if (result < 0) {
-                    game.log("Winner: CPU");
-                    game.getPlayers().get(1).bet(-pot);
-                } else {
-                    game.log("Draw");
-                    game.getPlayers().get(0).bet(-pot/2);
-                    game.getPlayers().get(1).bet(-pot/2);
-                }
-                return Stage.SHOWDOWN;
-            default:
-                return Stage.SHOWDOWN;
-        }
-    }
 }

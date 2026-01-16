@@ -1,4 +1,6 @@
-package poker;
+package playingcards;
+
+import java.util.Objects;
 
 /**
  * トランプのカード1枚を表すクラス。
@@ -50,6 +52,19 @@ public class Card implements Comparable<Card> {
     @Override
     public String toString() {
         return suit.getIcon() + rank.getLabel();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Card card = (Card) o;
+        return suit == card.suit && rank == card.rank;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(suit, rank);
     }
 
     // カードの強さ比較用（数字だけで比較）

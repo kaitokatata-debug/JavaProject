@@ -1,45 +1,44 @@
 package poker;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import poker.Card;
-import poker.Deck;
-import poker.HandEvaluator;
-import poker.Player;
+import playingcards.Card;
+import poker.cards.CommunityCards;
+import poker.cards.Hand;
 
 /**
  * テキサスホールデムのゲーム進行を管理するクラス。
  * プレイヤー、デッキ、コミュニティカード（場のカード）の状態を保持します。
  */
 public class TexasHoldemGame {
-    private Deck deck;
-    private List<Player> players;
-    private List<Card> communityCards; // 場に出る共通カード
-    private int pot; // ポット（賭け金の総額）
-    private int currentHighestBet; // 現在の最高ベット額
-    private List<String> logs = new ArrayList<>(); // ゲームログ
+    private Logger logger;
+    private Table table;
 
     public TexasHoldemGame() {
-        deck = new Deck();
-        players = new ArrayList<>();
-        communityCards = new ArrayList<>();
+        this.logger = new Logger();
+        this.table = new Table();
     }
 
-    // ログ出力用メソッド
+    /**
+     * ログを出力します。
+     * @param message ログメッセージ
+     */
     public void log(String message) {
-        logs.add(message);
-        System.out.println(message); // コンソールにも出す
+        logger.log(message);
     }
 
-    public List<String> getLogs() { return logs; }
-    public void clearLogs() { logs.clear(); }
+    public List<String> getLogs() { return logger.getLogs(); }
+    public void clearLogs() { logger.clear(); }
 
     /**
      * ゲームにプレイヤーを追加します。
      */
     public void addPlayer(Player player) {
-        players.add(player);
+        table.addPlayer(player);
     }
 
     /**
@@ -48,149 +47,177 @@ public class TexasHoldemGame {
      */
     public void startNewRound() {
         log("=== 新しいラウンドを開始します ===");
-        logs.clear();
-        pot = 0;
-        currentHighestBet = 0;
-        deck.initialize();
-        communityCards.clear();
-        for (Player p : players) {
-            p.clearHand();
-            // プリフロップ: 各プレイヤーに2枚配る
-            p.addCard(deck.draw());
-            p.addCard(deck.draw());
-            // log(p.toString()); // 手札はログに出すとバレるので隠す
-        }
+        logger.clear();
+        
+        table.prepareForNewHand();
+        // メインポットを作成して追加しておく
+        table.getPot().addSubPot(new Pot.SubPot());
+        
+        table.dealHoleCards();
     }
 
-    // --- ベッティングアクション ---
-
-    public void playerBet(Player player, int amount) {
-        if (player.isFolded()) return;
-        player.bet(amount);
-        pot += amount;
-        if (player.getCurrentBet() > currentHighestBet) {
-            currentHighestBet = player.getCurrentBet();
-        }
-        log(player.getName() + " bets " + amount + " (Total: " + player.getCurrentBet() + ")");
-    }
-
-    public void playerCall(Player player) {
-        if (player.isFolded()) return;
-        int amountToCall = currentHighestBet - player.getCurrentBet();
-        if (amountToCall > 0) {
-            player.bet(amountToCall);
-            pot += amountToCall;
-            log(player.getName() + " calls " + amountToCall);
-        } else {
-            log(player.getName() + " checks");
-        }
-    }
-
-    public void playerFold(Player player) {
-        player.fold();
-        log(player.getName() + " folds");
+    public void setCurrentHighestBet(int amount) {
+        table.setCurrentHighestBet(amount);
     }
 
     /**
      * ベッティングラウンドを終了し、次のストリートの準備をします。
      */
     public void endBettingRound() {
-        log("--- Betting Round Ends. Pot: " + pot + " ---");
-        currentHighestBet = 0;
-        for (Player p : players) {
-            p.resetBet();
-        }
+        log("--- Betting Round Ends ---");
+        table.endBettingRound();
+        log("Pot Status: " + table.getPot());
     }
 
-    // フロップ: コミュニティカードを3枚開く
+    /**
+     * フロップ（コミュニティカード3枚）を場に出します。
+     */
     public void dealFlop() {
-        deck.draw(); // バーンカード（不正防止で1枚捨てる）
-        communityCards.add(deck.draw());
-        communityCards.add(deck.draw());
-        communityCards.add(deck.draw());
+        table.dealFlop();
         printCommunityCards("Flop");
     }
 
-    // ターン: 4枚目を開く
+    /**
+     * ターン（コミュニティカード4枚目）を場に出します。
+     */
     public void dealTurn() {
-        deck.draw(); // バーン
-        communityCards.add(deck.draw());
+        table.dealTurn();
         printCommunityCards("Turn");
     }
 
-    // リバー: 5枚目を開く
+    /**
+     * リバー（コミュニティカード5枚目）を場に出します。
+     */
     public void dealRiver() {
-        deck.draw(); // バーン
-        communityCards.add(deck.draw());
+        table.dealRiver();
         printCommunityCards("River");
     }
 
     private void printCommunityCards(String stage) {
-        log("[" + stage + "] Community Cards: " + communityCards);
+        log("[" + stage + "] Community Cards: " + table.getCommunityCards());
     }
 
-    // 動作確認用のメインメソッド
-    public static void main(String[] args) {
-        TexasHoldemGame game = new TexasHoldemGame();
+    /**
+     * 現在の状態に基づいてゲームを次の段階に進めます。
+     * (例: PREFLOP -> FLOP)
+     */
+    public void advanceState() {
+        switch (table.getState()) {
+            case PREFLOP:
+                dealFlop();
+                break;
+            case FLOP:
+                dealTurn();
+                break;
+            case TURN:
+                dealRiver();
+                break;
+            case RIVER:
+                // 次はショーダウンなので、状態を更新するだけ
+                executeShowdown();
+                break;
+            default:
+                // 何もしない
+        }
+    }
+
+    /**
+     * ショーダウンを実行し、サイドポットごとに勝者を判定してチップを分配します。
+     * ハンドの途中で勝者が決まった場合（他の全員がフォールド）もこのメソッドで処理します。
+     */
+    public void executeShowdown() {
+        table.setState(State.SHOWDOWN);
+        log("--- Showdown ---");
+
+        List<Player> activePlayers = table.getActivePlayers();
         
-        // プレイヤー参加
-        Player alice = new Player("Alice", 1000);
-        Player bob = new Player("Bob", 1000);
-        game.addPlayer(alice);
-        game.addPlayer(bob);
-
-        // ゲーム進行
-        game.startNewRound();
-        
-        // プリフロップのベット進行例
-        game.playerBet(alice, 50); // Aliceが50ベット
-        game.playerCall(bob);      // Bobがコール
-        game.endBettingRound();
-
-        game.dealFlop();
-        // フロップでのベット進行例
-        game.playerCall(alice);    // Aliceチェック
-        game.playerBet(bob, 100);  // Bobが100ベット
-        game.playerCall(alice);    // Aliceコール
-        game.endBettingRound();
-
-        game.dealTurn();
-        game.endBettingRound(); // チェックで進行
-        game.dealRiver();
-        game.endBettingRound(); // チェックで進行
-        
-        
-
-        System.out.println("=== ラウンド終了: 役判定へ ===");
-
-        HandEvaluator.Hand bestHand = null;
-        List<Player> winners = new ArrayList<>();
-
-        // 各プレイヤーの役を判定して表示
-        for (Player p : game.players) {
-            if (p.isFolded()) continue; // フォールドした人は判定しない
-
-            HandEvaluator.Hand hand = HandEvaluator.evaluate(p.getHoleCards(), game.communityCards);
-            System.out.println(p.getName() + " の役: " + hand);
-
-            if (bestHand == null || hand.compareTo(bestHand) > 0) {
-                bestHand = hand;
-                winners.clear();
-                winners.add(p);
-            } else if (hand.compareTo(bestHand) == 0) {
-                winners.add(p);
-            }
+        // 1人しか残っていない場合（不戦勝）
+        if (activePlayers.size() == 1) {
+            handleWalkover(activePlayers.get(0));
+            return;
         }
 
-        System.out.println("\n=== 勝者 ===");
-        for (Player winner : winners) {
-            System.out.println("Winner: " + winner.getName() + " (" + bestHand + ") wins Pot: " + game.pot);
+        // 全プレイヤーの役を判定
+        Map<Player, Hand> playerHands = evaluateHands(activePlayers);
+
+        // 各サブポットを分配
+        List<Pot.SubPot> subPots = table.getPot().getSubPots();
+        for (int i = 0; i < subPots.size(); i++) {
+            resolvePot(subPots.get(i), playerHands, i + 1);
+        }
+    }
+
+    private void handleWalkover(Player winner) {
+        int totalPot = table.getPot().getTotalAmount();
+        log(winner.getName() + " is the last player remaining and wins the pot of " + totalPot);
+        winner.winChips(totalPot);
+        table.getPot().clear();
+    }
+
+    private Map<Player, Hand> evaluateHands(List<Player> players) {
+        Map<Player, Hand> playerHands = new HashMap<>();
+        CommunityCards communityCards = table.getCommunityCards();
+        for (Player player : players) {
+            Hand hand = HandEvaluator.evaluate(player.getHoleCards(), communityCards);
+            playerHands.put(player, hand);
+            log(player.getName() + "'s hand: " + hand);
+        }
+        return playerHands;
+    }
+
+    private void resolvePot(Pot.SubPot subPot, Map<Player, Hand> playerHands, int potIndex) {
+        if (subPot.getAmount() == 0) return;
+
+        log("Evaluating Pot #" + potIndex + " (" + subPot.getAmount() + ")");
+
+        List<Player> contenders = subPot.getEligiblePlayers().stream()
+                                        .filter(playerHands::containsKey)
+                                        .collect(Collectors.toList());
+
+        if (contenders.isEmpty()) {
+            log("No contenders for Pot #" + potIndex);
+            return;
+        }
+
+        // 最強のハンドを見つける
+        Hand bestHand = contenders.stream()
+                .map(playerHands::get)
+                .max(Hand::compareTo)
+                .orElse(null);
+
+        // 最強ハンドを持つプレイヤー（複数可）を抽出
+        List<Player> winners = contenders.stream()
+                .filter(p -> playerHands.get(p).compareTo(bestHand) == 0)
+                .collect(Collectors.toList());
+
+        distributePot(subPot, winners, bestHand, potIndex);
+    }
+
+    private void distributePot(Pot.SubPot subPot, List<Player> winners, Hand bestHand, int potIndex) {
+        if (!winners.isEmpty()) {
+            int prize = subPot.getAmount() / winners.size();
+            int remainder = subPot.getAmount() % winners.size();
+
+            String winnerNames = winners.stream().map(Player::getName).collect(Collectors.joining(", "));
+            log("Pot #" + potIndex + " of " + subPot.getAmount() + " goes to " + winnerNames + " with " + bestHand);
+
+            for (Player winner : winners) {
+                winner.winChips(prize);
+            }
+            // 端数は最初の勝者に渡す
+            if (remainder > 0) {
+                winners.get(0).winChips(remainder);
+                log(winners.get(0).getName() + " receives the remainder of " + remainder);
+            }
         }
     }
 
     // Web表示用のGetterメソッド
-    public List<Player> getPlayers() { return players; }
-    public List<Card> getCommunityCards() { return communityCards; }
-    public int getPot() { return pot; }
-    public int getCurrentHighestBet() { return currentHighestBet; }
+    public List<Player> getPlayers() { return table.getPlayers(); }
+    public List<Card> getCommunityCards() { return table.getCommunityCards().getCards(); }
+    public int getPot() { return table.getPot().getTotalAmount(); }
+    public int getCurrentHighestBet() { return table.getCurrentHighestBet(); }
+    public Table getTable() { return table; }
+    public State getState() { return table.getState(); }
+    public void setState(State state) { table.setState(state); }
 }

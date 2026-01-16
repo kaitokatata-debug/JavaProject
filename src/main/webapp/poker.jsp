@@ -1,9 +1,9 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="poker.*" %>
+<%@ page import="playingcards.Card" %>
 <%@ page import="java.util.List" %>
 <%
     TexasHoldemGame game = (TexasHoldemGame) session.getAttribute("pokerGame");
-    String stageName = String.valueOf(session.getAttribute("pokerStage"));
     if (game == null) {
         response.sendRedirect("poker");
         return;
@@ -29,13 +29,19 @@
     <div class="game-container">
         <h1>Texas Hold'em</h1>
         <a href="result.jsp" style="float:right; color: #3498db;">戻る</a>
+
+        <% if (request.getAttribute("error") != null) { %>
+            <div style="color: #e74c3c; background-color: #fadbd8; padding: 10px; border: 1px solid #e74c3c; border-radius: 4px; margin-bottom: 15px;">
+                <%= request.getAttribute("error") %>
+            </div>
+        <% } %>
         
         <div class="poker-table">
             <!-- CPU Area -->
             <div>
                 <h3>CPU (Chips: <%= cpu.getChips() %>)</h3>
                 <div>
-                    <% if ("SHOWDOWN".equals(stageName)) { 
+                    <% if (game.getState() == State.SHOWDOWN) { 
                         for(Card c : cpu.getHoleCards()) { 
                             String colorClass = (c.getSuit() == Card.Suit.HEARTS || c.getSuit() == Card.Suit.DIAMONDS) ? "red" : "";
                     %>
@@ -76,7 +82,7 @@
             <!-- Controls -->
             <div class="controls">
                 <form action="poker" method="post">
-                    <% if ("SHOWDOWN".equals(stageName)) { %>
+                    <% if (game.getState() == State.SHOWDOWN) { %>
                         <button type="submit" name="action" value="next" style="padding:10px 20px; background:#2ecc71; color:white; border:none; border-radius:5px; cursor:pointer;">Next Round</button>
                     <% } else { %>
                         <button type="submit" name="action" value="call" style="padding:10px 20px; cursor:pointer;">Check / Call</button>
@@ -85,6 +91,7 @@
                         <span style="margin-left: 20px;">
                             <input type="number" name="amount" value="100" min="10" max="<%= human.getChips() %>" style="width:80px; padding:5px;">
                             <button type="submit" name="action" value="bet" style="padding:10px 20px; background:#f1c40f; border:none; border-radius:5px; cursor:pointer;">Bet / Raise</button>
+                            <button type="submit" name="action" value="allin" style="padding:10px 20px; background:#8e44ad; color:white; border:none; border-radius:5px; cursor:pointer; margin-left:5px;">All In</button>
                         </span>
                     <% } %>
                     <div style="margin-top:10px;">
