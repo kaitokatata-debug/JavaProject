@@ -10,7 +10,32 @@
 - **サーバー**: Apache Tomcat（Javaプログラム内で起動する埋め込みモード）
 - **ビルドツール**: Maven
 
+## 環境構築 (Windows)
+
+このプロジェクトを実行するには Java (JDK) と Maven が必要です。
+Windows パッケージマネージャーの **Scoop** を使ったインストール方法を以下に記載します。
+
+### 1. Scoop のインストール
+
+PowerShell を開き、以下のコマンドを実行して Scoop をインストールします。
+（既にインストール済みの場合はスキップしてください）
+
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser # 実行ポリシーの変更
+irm get.scoop.sh | iex
+```
+
+### 2. Java (JDK) と Maven のインストール
+
+Scoop を使って必要なツールをインストールします。
+
+```powershell
+scoop install java maven
+```
+
 ## 実行方法
+
+### 1. コマンドラインから実行する場合
 
 ターミナルで以下のコマンドを実行してサーバーを起動します。
 
@@ -19,6 +44,10 @@ mvn clean compile exec:java -Dexec.mainClass="App"
 ```
 
 起動後、ブラウザで `http://localhost:8080/` にアクセスしてください。
+
+### 2. バッチファイルで簡単に起動する場合 (Windows)
+
+プロジェクトフォルダにある `run.bat` をダブルクリックするだけで、サーバーの起動とブラウザの自動オープンが行われます。
 
 ## ファイル構成と役割
 
