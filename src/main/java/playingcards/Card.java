@@ -38,10 +38,31 @@ public class Card implements Comparable<Card> {
         public String getLabel() { return label; }
     }
 
+    // 全カードのインスタンスをキャッシュする配列
+    private static final Card[][] CACHE = new Card[Suit.values().length][Rank.values().length];
+
+    static {
+        for (Suit s : Suit.values()) {
+            for (Rank r : Rank.values()) {
+                CACHE[s.ordinal()][r.ordinal()] = new Card(s, r);
+            }
+        }
+    }
+
     private final Suit suit;
     private final Rank rank;
 
-    public Card(Suit suit, Rank rank) {
+    /**
+     * 指定されたスートとランクのカードインスタンスを取得します。
+     * @param suit スート
+     * @param rank ランク
+     * @return キャッシュされたカードインスタンス
+     */
+    public static Card valueOf(Suit suit, Rank rank) {
+        return CACHE[suit.ordinal()][rank.ordinal()];
+    }
+
+    private Card(Suit suit, Rank rank) {
         this.suit = suit;
         this.rank = rank;
     }

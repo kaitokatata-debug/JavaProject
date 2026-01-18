@@ -1,18 +1,28 @@
-package poker;
+package poker.cards;
 
 /**
  * 役の強さを表す列挙型（弱い順）
  */
 public enum HandRank {
+    /** ハイカード（役なし）。 */
     HIGH_CARD(1, "High Card"),
+    /** ワンペア。 */
     ONE_PAIR(2, "One Pair"),
+    /** ツーペア。 */
     TWO_PAIR(3, "Two Pair"),
+    /** スリーカード。 */
     THREE_OF_A_KIND(4, "Three of a Kind"),
+    /** ストレート。 */
     STRAIGHT(5, "Straight"),
+    /** フラッシュ。 */
     FLUSH(6, "Flush"),
+    /** フルハウス。 */
     FULL_HOUSE(7, "Full House"),
+    /** フォーカード。 */
     FOUR_OF_A_KIND(8, "Four of a Kind"),
+    /** ストレートフラッシュ。 */
     STRAIGHT_FLUSH(9, "Straight Flush"),
+    /** ロイヤルフラッシュ。 */
     ROYAL_FLUSH(10, "Royal Flush");
 
     private final int power;

@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import playingcards.Card;
 import poker.cards.CommunityCards;
 import poker.cards.Hand;
+import poker.cards.HandEvaluator;
 
 /**
  * テキサスホールデムのゲーム進行を管理するクラス。
@@ -30,7 +31,15 @@ public class TexasHoldemGame {
         logger.log(message);
     }
 
+    /**
+     * 実行ログのリストを取得します。
+     * @return ログメッセージのリスト
+     */
     public List<String> getLogs() { return logger.getLogs(); }
+
+    /**
+     * ログをクリアします。
+     */
     public void clearLogs() { logger.clear(); }
 
     /**
@@ -55,6 +64,10 @@ public class TexasHoldemGame {
         table.dealHoleCards();
     }
 
+    /**
+     * 現在の最高ベット額を設定します。
+     * @param amount ベット額
+     */
     public void setCurrentHighestBet(int amount) {
         table.setCurrentHighestBet(amount);
     }
@@ -214,11 +227,45 @@ public class TexasHoldemGame {
     }
 
     // Web表示用のGetterメソッド
+    /**
+     * 参加しているプレイヤーのリストを取得します。
+     * @return プレイヤーリスト
+     */
     public List<Player> getPlayers() { return table.getPlayers(); }
+
+    /**
+     * 現在のコミュニティカードを取得します。
+     * @return コミュニティカードのリスト
+     */
     public List<Card> getCommunityCards() { return table.getCommunityCards().getCards(); }
+
+    /**
+     * 現在のポットの総額を取得します。
+     * @return ポット総額
+     */
     public int getPot() { return table.getPot().getTotalAmount(); }
+
+    /**
+     * 現在の最高ベット額を取得します。
+     * @return 最高ベット額
+     */
     public int getCurrentHighestBet() { return table.getCurrentHighestBet(); }
+
+    /**
+     * テーブル情報を取得します。
+     * @return テーブルオブジェクト
+     */
     public Table getTable() { return table; }
+
+    /**
+     * 現在のゲーム状態を取得します。
+     * @return ゲーム状態
+     */
     public State getState() { return table.getState(); }
+
+    /**
+     * ゲーム状態を設定します。
+     * @param state 新しいゲーム状態
+     */
     public void setState(State state) { table.setState(state); }
 }

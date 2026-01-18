@@ -1,7 +1,5 @@
 package playingcards;
 
-import java.util.Collections;
-
 /**
  * 52枚のカードデッキを管理するクラス。
  * シャッフルやカードを引く機能を提供します。
@@ -20,11 +18,10 @@ public class Deck extends Cards {
         clear();
         for (Card.Suit suit : Card.Suit.values()) {
             for (Card.Rank rank : Card.Rank.values()) {
-                // 親クラスのprotectedフィールドに直接アクセスして追加
-                cards.add(new Card(suit, rank));
+                addCard(Card.valueOf(suit, rank));
             }
         }
-        Collections.shuffle(cards);
+        shuffle();
     }
 
     /**
@@ -33,9 +30,9 @@ public class Deck extends Cards {
      * @throws IllegalStateException デッキが空の場合
      */
     public Card draw() {
-        if (cards.isEmpty()) {
+        if (isEmpty()) {
             throw new IllegalStateException("デッキが空です");
         }
-        return cards.remove(cards.size() - 1);
+        return removeCard(size() - 1);
     }
 }

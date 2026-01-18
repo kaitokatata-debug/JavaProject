@@ -81,30 +81,57 @@ public class Player {
         currentBet = 0;
     }
 
+    /**
+     * 現在のラウンドで賭けた金額を取得します。
+     * @return 現在のベット額
+     */
     public int getCurrentBet() {
         return currentBet;
     }
 
+    /**
+     * このハンド全体で賭けた金額の合計を取得します。
+     * @return ハンド全体のベット総額
+     */
     public int getTotalBetInHand() {
         return totalBetInHand;
     }
 
+    /**
+     * プレイヤーをフォールド状態にします。
+     */
     public void fold() {
         isFolded = true;
     }
 
+    /**
+     * プレイヤーがフォールドしているかどうかを判定します。
+     * @return フォールドしている場合はtrue
+     */
     public boolean isFolded() {
         return isFolded;
     }
 
+    /**
+     * プレイヤーのホールカード（手札）を取得します。
+     * @return ホールカード
+     */
     public HoleCards getHoleCards() {
         return holeCards;
     }
 
+    /**
+     * プレイヤー名を取得します。
+     * @return 名前
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * 現在の所持チップ数を取得します。
+     * @return チップ数
+     */
     public int getChips() {
         return chips;
     }
@@ -114,10 +141,18 @@ public class Player {
         return name + " (Chips: " + chips + ") Hand: " + holeCards;
     }
 
+    /**
+     * 直前のアクション内容を取得します。
+     * @return アクションの文字列表現
+     */
     public String getLastAction() {
         return lastAction;
     }
 
+    /**
+     * 直前のアクション内容を設定します。
+     * @param lastAction アクションの文字列表現
+     */
     public void setLastAction(String lastAction) {
         this.lastAction = lastAction;
     }
@@ -132,18 +167,34 @@ public class Player {
         return action;
     }
 
+    /**
+     * このハンドの勝者かどうかを判定します。
+     * @return 勝者の場合はtrue
+     */
     public boolean isWinner() {
         return isWinner;
     }
 
+    /**
+     * このハンドの勝者かどうかを設定します。
+     * @param winner 勝者の場合はtrue
+     */
     public void setWinner(boolean winner) {
         isWinner = winner;
     }
 
+    /**
+     * 判定された最強の役を取得します。
+     * @return 最強の役
+     */
     public Hand getBestHand() {
         return bestHand;
     }
 
+    /**
+     * 判定された最強の役を設定します。
+     * @param bestHand 最強の役
+     */
     public void setBestHand(Hand bestHand) {
         this.bestHand = bestHand;
     }

@@ -11,7 +11,7 @@ public class AllCards extends Cards {
     public AllCards(Cards holeCards, Cards communityCards) {
         super(7, "全カード");
         // パッケージが異なるためgetter経由で取得
-        this.cards.addAll(holeCards.getCards());
-        this.cards.addAll(communityCards.getCards());
+        addCards(holeCards.getCards());
+        addCards(communityCards.getCards());
     }
 }

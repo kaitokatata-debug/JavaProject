@@ -4,13 +4,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * 複数のカードを保持する基底クラス。
  * HoleCardsやCommunityCardsの共通処理を定義します。
  */
 public abstract class Cards implements Iterable<Card> {
-    protected final List<Card> cards = new ArrayList<>();
+    private final List<Card> cards = new ArrayList<>();
     private final int maxSize;
     private final String name;
 
@@ -23,34 +25,89 @@ public abstract class Cards implements Iterable<Card> {
         this.name = name;
     }
 
+    /**
+     * カードを1枚追加します。
+     * @param card 追加するカード
+     * @throws NullPointerException cardがnullの場合
+     * @throws IllegalStateException 最大枚数を超える場合
+     */
     public void addCard(Card card) {
+        Objects.requireNonNull(card, "card must not be null");
         if (cards.size() >= maxSize) {
             throw new IllegalStateException(name + "は" + maxSize + "枚までです。");
         }
         cards.add(card);
     }
 
+    /**
+     * 複数のカードを追加します。
+     * @param newCards 追加するカードのリスト
+     * @throws NullPointerException newCardsがnullの場合
+     * @throws IllegalStateException 最大枚数を超える場合
+     */
     public void addCards(List<Card> newCards) {
+        Objects.requireNonNull(newCards, "newCards must not be null");
         if (cards.size() + newCards.size() > maxSize) {
             throw new IllegalStateException(name + "は" + maxSize + "枚までです。");
         }
         cards.addAll(newCards);
     }
 
+    /**
+     * 保持しているカードを全て削除します。
+     */
     public void clear() {
         cards.clear();
     }
 
+    /**
+     * 保持しているカードのリスト（コピー）を返します。
+     * @return カードリスト
+     */
     public List<Card> getCards() {
         return new ArrayList<>(cards);
     }
 
+    /**
+     * 指定されたカードが含まれているか判定します。
+     * @param card 判定対象のカード
+     * @return 含まれている場合はtrue
+     */
     public boolean contains(Card card) {
         return cards.contains(card);
     }
 
+    /**
+     * 保持しているカードの枚数を返します。
+     * @return カード枚数
+     */
     public int size() {
         return cards.size();
+    }
+
+    /**
+     * 指定されたインデックスのカードを取得します。
+     * @param index インデックス
+     * @return カード
+     */
+    public Card get(int index) {
+        return cards.get(index);
+    }
+
+    /**
+     * カードが空かどうかを判定します。
+     * @return 空の場合はtrue
+     */
+    public boolean isEmpty() {
+        return cards.isEmpty();
+    }
+
+    /**
+     * 保持しているカードのストリームを返します。
+     * @return カードのストリーム
+     */
+    public Stream<Card> stream() {
+        return cards.stream();
     }
 
     /**
@@ -81,6 +138,17 @@ public abstract class Cards implements Iterable<Card> {
      */
     public void sort() {
         sort(this.cards);
+    }
+
+    /**
+     * 保持しているカードをシャッフルします。
+     */
+    public void shuffle() {
+        Collections.shuffle(cards);
+    }
+
+    protected Card removeCard(int index) {
+        return cards.remove(index);
     }
 
     /**
