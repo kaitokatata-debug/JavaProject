@@ -43,9 +43,12 @@ public class Action {
     public void execute(TexasHoldemGame game) {
         if (player.isFolded()) return;
 
+        String actionText = null;
+
         switch (type) {
             case FOLD:
                 player.fold();
+                actionText = "Fold";
                 game.log(player.getName() + " folds");
                 break;
 
@@ -55,8 +58,10 @@ public class Action {
                 int amountToCall = currentHighest - player.getCurrentBet();
                 if (amountToCall > 0) {
                     player.bet(amountToCall);
+                    actionText = "Call";
                     game.log(player.getName() + " calls " + amountToCall);
                 } else {
+                    actionText = "Check";
                     game.log(player.getName() + " checks");
                 }
                 break;
@@ -67,6 +72,7 @@ public class Action {
                 if (player.getCurrentBet() > game.getCurrentHighestBet()) {
                     game.setCurrentHighestBet(player.getCurrentBet());
                 }
+                actionText = (type == Type.BET ? "Bet " : "Raise ") + amount;
                 game.log(player.getName() + " bets " + amount + " (Total: " + player.getCurrentBet() + ")");
                 break;
 
@@ -76,9 +82,11 @@ public class Action {
                 if (player.getCurrentBet() > game.getCurrentHighestBet()) {
                     game.setCurrentHighestBet(player.getCurrentBet());
                 }
+                actionText = "All In";
                 game.log(player.getName() + " goes ALL-IN (" + allInAmount + ")");
                 break;
         }
+        player.setLastAction(actionText);
     }
 
     /**
@@ -100,6 +108,8 @@ public class Action {
                 return player.getCurrentBet() < game.getCurrentHighestBet();
 
             case BET:
+                return amount > 0 && amount <= player.getChips();
+
             case RAISE:
                 if (amount <= 0 || amount > player.getChips()) {
                     return false;

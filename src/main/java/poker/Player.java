@@ -2,6 +2,7 @@ package poker;
 
 import playingcards.Card;
 import poker.cards.HoleCards;
+import poker.cards.Hand;
 
 /**
  * ポーカーのプレイヤーを表すクラス。
@@ -14,6 +15,9 @@ public class Player {
     private boolean isFolded = false; // フォールドしたかどうか
     private int currentBet = 0; // 現在のラウンドで賭けた額
     private int totalBetInHand = 0; // このハンド全体での賭け金合計
+    private String lastAction; // 直前のアクション内容（吹き出し表示用）
+    private boolean isWinner = false; // そのハンドの勝者かどうか
+    private Hand bestHand; // 判定された最強の役（5枚）
 
     /**
      * プレイヤーを生成します。
@@ -41,6 +45,9 @@ public class Player {
         isFolded = false;
         currentBet = 0;
         totalBetInHand = 0;
+        lastAction = null;
+        isWinner = false;
+        bestHand = null;
     }
 
     /**
@@ -105,6 +112,40 @@ public class Player {
     @Override
     public String toString() {
         return name + " (Chips: " + chips + ") Hand: " + holeCards;
+    }
+
+    public String getLastAction() {
+        return lastAction;
+    }
+
+    public void setLastAction(String lastAction) {
+        this.lastAction = lastAction;
+    }
+
+    /**
+     * 直前のアクション内容を取得し、フィールドをクリアします。
+     * 一度だけ表示したい場合（吹き出しなど）に使用します。
+     */
+    public String consumeLastAction() {
+        String action = this.lastAction;
+        this.lastAction = null;
+        return action;
+    }
+
+    public boolean isWinner() {
+        return isWinner;
+    }
+
+    public void setWinner(boolean winner) {
+        isWinner = winner;
+    }
+
+    public Hand getBestHand() {
+        return bestHand;
+    }
+
+    public void setBestHand(Hand bestHand) {
+        this.bestHand = bestHand;
     }
 
     // --- アクション実行メソッド ---

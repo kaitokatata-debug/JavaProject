@@ -2,6 +2,10 @@
 <%
     String name = (String) session.getAttribute("username");
 %>
+<%
+    String gameResult = (String) session.getAttribute("gameResult");
+    if (gameResult != null) session.removeAttribute("gameResult");
+%>
 <html>
 <head>
     <title>結果画面</title>
@@ -28,6 +32,11 @@
 </div>
     <h1>結果画面</h1>
     <p>こんにちは、<%= name == null ? "ゲスト" : name %> さん！</p>
+    <% if (gameResult != null) { %>
+        <h2 style="color: <%= "You Win!".equals(gameResult) ? "#2ecc71" : "#e74c3c" %>; font-size: 2.5em; margin: 20px 0;">
+            <%= gameResult %>
+        </h2>
+    <% } %>
     <br>
     <a href="list">一覧を見る</a>
     <br>

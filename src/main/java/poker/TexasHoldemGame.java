@@ -158,6 +158,7 @@ public class TexasHoldemGame {
         CommunityCards communityCards = table.getCommunityCards();
         for (Player player : players) {
             Hand hand = HandEvaluator.evaluate(player.getHoleCards(), communityCards);
+            player.setBestHand(hand);
             playerHands.put(player, hand);
             log(player.getName() + "'s hand: " + hand);
         }
@@ -201,6 +202,7 @@ public class TexasHoldemGame {
             log("Pot #" + potIndex + " of " + subPot.getAmount() + " goes to " + winnerNames + " with " + bestHand);
 
             for (Player winner : winners) {
+                winner.setWinner(true);
                 winner.winChips(prize);
             }
             // 端数は最初の勝者に渡す
