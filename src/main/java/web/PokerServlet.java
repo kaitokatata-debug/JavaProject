@@ -1,18 +1,14 @@
 package web;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import poker.AIPlayer;
 import poker.Action;
+import poker.HumanPlayer;
 import poker.Player;
 import poker.State;
 import poker.TexasHoldemGame;
@@ -45,12 +41,20 @@ public class PokerServlet extends HttpServlet {
             if (username == null) username = "Player";
             
             // プレイヤー作成 (Human vs CPU)
-            game.addPlayer(new Player(username, 1000));
-            game.addPlayer(new Player("CPU", 1000));
+            game.addPlayer(new HumanPlayer(username, 1000));
+            game.addPlayer(new AIPlayer("CPU", 1000));
             
             session.setAttribute("pokerGame", game);
             
             game.startNewRound();
+            checkCpuTurn(session, game);
+        }
+
+        // CPUのターンであれば自動でアクションを実行
+        Boolean isCpuTurn = (Boolean) session.getAttribute("isCpuTurn");
+        if (isCpuTurn != null && isCpuTurn) {
+            game.processAiTurn(game.getTable().getCurrentPlayer());
+            checkCpuTurn(session, game); // アクション後の状態を再チェック
         }
 
         // エラーメッセージの処理（Flash Scope）
@@ -75,37 +79,19 @@ public class PokerServlet extends HttpServlet {
         }
 
         String action = req.getParameter("action");
-        Player human = game.getPlayers().get(0);
-        Player cpu = game.getPlayers().get(1);
 
         if ("reset".equals(action)) {
-            // ゲームリセット
-            session.removeAttribute("pokerGame");
+            game.resetGame();
+            checkCpuTurn(session, game);
             resp.sendRedirect("poker");
             return;
         }
         
         if ("next".equals(action)) {
-            // どちらかのチップが0になったらゲーム終了（強制終了）
-            if (human.getChips() == 0 || cpu.getChips() == 0) {
-                String resultMessage = (human.getChips() > 0) ? "You Win!" : "Game Over";
-                session.setAttribute("gameResult", resultMessage);
-                if (human.getChips() > 0) {
-                    saveScore(human.getName(), human.getChips(), session);
-                }
-
-                session.removeAttribute("pokerGame");
-                resp.sendRedirect("result.jsp");
-                return;
-            }
-
-            // 次のラウンドへ（ショーダウン後）
-            game.startNewRound();
-            resp.sendRedirect("poker");
+            handleNextRound(session, resp, game);
             return;
         }
 
-        // 自動進行アクション（オールイン時の遅延実行用）
         if ("auto_advance".equals(action)) {
             if (game.getState() != State.SHOWDOWN) {
                 game.advanceState();
@@ -114,127 +100,88 @@ public class PokerServlet extends HttpServlet {
             return;
         }
 
-        // CPUのターン処理（JSPからの遅延リクエストで実行）
-        if ("cpu_turn".equals(action)) {
-            // CPUのアクション実行
-            if (!human.isFolded() && game.getState() != State.SHOWDOWN) {
-                cpu.doCall(game);
-            }
-
-            // ベッティングラウンド終了判定
-            if (!human.isFolded()) {
-                game.endBettingRound();
-                // 2人以上残っている場合のみ次のストリートへ
-                if (game.getTable().getActivePlayers().size() > 1) {
-                    if (game.getState() != State.SHOWDOWN) {
-                        game.advanceState();
-                    }
-                }
-            }
-            session.removeAttribute("isCpuTurn");
-            resp.sendRedirect("poker");
-            return;
-        }
-
-        // プレイヤーのアクション処理
         if (game.getState() != State.SHOWDOWN) {
-            Action playerAction = null;
-
-            if ("fold".equals(action)) {
-                playerAction = new Action(human, Action.Type.FOLD);
-            } else if ("call".equals(action)) {
-                // コールかチェックかを判定
-                int diff = game.getCurrentHighestBet() - human.getCurrentBet();
-                Action.Type type = (diff > 0) ? Action.Type.CALL : Action.Type.CHECK;
-                playerAction = new Action(human, type);
-            } else if ("bet".equals(action)) {
-                int amount = 0;
-                try {
-                    amount = Integer.parseInt(req.getParameter("amount"));
-                } catch (NumberFormatException e) {
-                    // 無効な数値
-                }
-                
-                if (amount >= human.getChips()) {
-                    playerAction = new Action(human, Action.Type.ALL_IN);
-                } else {
-                    Action.Type type = (game.getCurrentHighestBet() > 0) ? Action.Type.RAISE : Action.Type.BET;
-                    playerAction = new Action(human, type, amount);
-                }
-            } else if ("allin".equals(action)) {
-                playerAction = new Action(human, Action.Type.ALL_IN);
-            }
-
-            if (playerAction != null) {
-                if (!playerAction.validate(game)) {
-                    session.setAttribute("error", "無効なアクションです（チップ不足、またはベット額が不正です）");
-                    resp.sendRedirect("poker");
-                    return;
-                }
-                playerAction.execute(game);
-
-                if ("fold".equals(action)) {
-                    game.executeShowdown();
-                    session.removeAttribute("isCpuTurn");
-                } else {
-                    // プレイヤーのアクション完了後、CPUのターンフラグを立てる（即時実行しない）
-                    session.setAttribute("isCpuTurn", true);
-                }
+            if (!processPlayerAction(req, session, game, action)) {
+                resp.sendRedirect("poker");
+                return;
             }
         }
 
+        checkCpuTurn(session, game);
         resp.sendRedirect("poker");
+    }
+
+    private void handleNextRound(HttpSession session, HttpServletResponse resp, TexasHoldemGame game) throws IOException {
+        Player human = game.getPlayers().get(0);
+        Player cpu = game.getPlayers().get(1);
+
+        // どちらかのチップが0になったらゲーム終了
+        if (human.getChips() == 0 || cpu.getChips() == 0) {
+            String resultMessage = (human.getChips() > 0) ? "You Win!" : "Game Over";
+            session.setAttribute("gameResult", resultMessage);
+            if (human.getChips() > 0) {
+                saveScore(human.getName(), human.getChips(), session);
+            }
+
+            session.removeAttribute("pokerGame");
+            resp.sendRedirect("result.jsp");
+        } else {
+            // 次のラウンドへ
+            game.startNewRound();
+            checkCpuTurn(session, game);
+            resp.sendRedirect("poker");
+        }
+    }
+
+    private boolean processPlayerAction(HttpServletRequest req, HttpSession session, TexasHoldemGame game, String action) {
+        Player human = game.getPlayers().get(0);
+        Action playerAction = null;
+
+        if ("fold".equals(action)) {
+            playerAction = new Action(human, Action.Type.FOLD);
+        } else if ("call".equals(action)) {
+            int diff = game.getCurrentHighestBet() - human.getCurrentBet();
+            Action.Type type = (diff > 0) ? Action.Type.CALL : Action.Type.CHECK;
+            playerAction = new Action(human, type);
+        } else if ("bet".equals(action)) {
+            int amount = 0;
+            try {
+                amount = Integer.parseInt(req.getParameter("amount"));
+            } catch (NumberFormatException e) {
+                // 無効な数値
+            }
+            
+            if (amount >= human.getChips()) {
+                playerAction = new Action(human, Action.Type.ALL_IN);
+            } else {
+                Action.Type type = (game.getCurrentHighestBet() > 0) ? Action.Type.RAISE : Action.Type.BET;
+                playerAction = new Action(human, type, amount);
+            }
+        } else if ("allin".equals(action)) {
+            playerAction = new Action(human, Action.Type.ALL_IN);
+        }
+
+        if (playerAction != null) {
+            if (!playerAction.validate(game)) {
+                session.setAttribute("error", "無効なアクションです（チップ不足、またはベット額が不正です）");
+                return false;
+            }
+            playerAction.execute(game);
+        }
+        return true;
+    }
+
+    private void checkCpuTurn(HttpSession session, TexasHoldemGame game) {
+        if (game.getState() != State.SHOWDOWN && game.getTable().getCurrentPlayer() != null && game.getTable().getCurrentPlayer().isBot()) {
+            session.setAttribute("isCpuTurn", true);
+        } else {
+            session.removeAttribute("isCpuTurn");
+        }
     }
 
     private void saveScore(String name, int score, HttpSession session) {
         Integer userId = (Integer) session.getAttribute("userId");
-
-        try (Connection conn = DriverManager.getConnection("jdbc:h2:./mydb", "sa", "")) {
-            // userIdがない場合、名前から取得
-            if (userId == null) {
-                try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM users WHERE name = ?")) {
-                    ps.setString(1, name);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            userId = rs.getInt("id");
-                        }
-                    }
-                }
-            }
-
-            // ハイスコアの場合のみusersテーブルを更新
-            try (PreparedStatement updateStmt = conn.prepareStatement("UPDATE users SET score = ? WHERE name = ? AND score < ?")) {
-                updateStmt.setInt(1, score);
-                updateStmt.setString(2, name);
-                updateStmt.setInt(3, score);
-                int rows = updateStmt.executeUpdate();
-
-                // 更新されず、かつユーザーが存在しない場合は新規作成
-                if (rows == 0 && userId == null) {
-                    try (PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO users (name, score) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-                        insertStmt.setString(1, name);
-                        insertStmt.setInt(2, score);
-                        insertStmt.executeUpdate();
-                        try (ResultSet generatedKeys = insertStmt.getGeneratedKeys()) {
-                            if (generatedKeys.next()) {
-                                userId = generatedKeys.getInt(1);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ランキングテーブルに保存
-            if (userId != null) {
-                try (PreparedStatement rankStmt = conn.prepareStatement("INSERT INTO rankings (user_id, game_name, score) VALUES (?, ?, ?)")) {
-                    rankStmt.setInt(1, userId);
-                    rankStmt.setString(2, "Poker");
-                    rankStmt.setInt(3, score);
-                    rankStmt.executeUpdate();
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        ScoreRepository repository = new ScoreRepository();
+        repository.saveScore(name, score, userId, "Poker");
     }
 }

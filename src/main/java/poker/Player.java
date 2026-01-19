@@ -8,16 +8,18 @@ import poker.cards.Hand;
  * ポーカーのプレイヤーを表すクラス。
  * 名前、手札、所持チップを管理します。
  */
-public class Player {
+public abstract class Player {
     private String name;
     private HoleCards holeCards = new HoleCards(); // 手札（ホールカード）
     private int chips;
+    private final int initialChips; // 初期チップ数
     private boolean isFolded = false; // フォールドしたかどうか
     private int currentBet = 0; // 現在のラウンドで賭けた額
     private int totalBetInHand = 0; // このハンド全体での賭け金合計
     private String lastAction; // 直前のアクション内容（吹き出し表示用）
     private boolean isWinner = false; // そのハンドの勝者かどうか
     private Hand bestHand; // 判定された最強の役（5枚）
+    private boolean hasActed = false; // 現在のラウンドでアクションを行ったかどうか
 
     /**
      * プレイヤーを生成します。
@@ -27,6 +29,7 @@ public class Player {
     public Player(String name, int chips) {
         this.name = name;
         this.chips = chips;
+        this.initialChips = chips;
     }
 
     /**
@@ -48,6 +51,7 @@ public class Player {
         lastAction = null;
         isWinner = false;
         bestHand = null;
+        hasActed = false;
     }
 
     /**
@@ -67,6 +71,13 @@ public class Player {
     }
 
     /**
+     * チップを初期状態にリセットします。
+     */
+    public void resetChips() {
+        this.chips = initialChips;
+    }
+
+    /**
      * チップを獲得します。
      * @param amount 獲得する額
      */
@@ -79,6 +90,7 @@ public class Player {
      */
     public void resetBet() {
         currentBet = 0;
+        hasActed = false;
     }
 
     /**
@@ -199,7 +211,45 @@ public class Player {
         this.bestHand = bestHand;
     }
 
+    /**
+     * このプレイヤーがボット（AI）かどうかを返します。
+     * @return ボットの場合はtrue
+     */
+    public abstract boolean isBot();
+
+    /**
+     * 現在のラウンドでアクションを行ったかどうかを返します。
+     * @return アクション済みの場合はtrue
+     */
+    public boolean hasActed() {
+        return hasActed;
+    }
+
+    /**
+     * アクション済みフラグを設定します。
+     * @param hasActed アクション済みの場合はtrue
+     */
+    public void setHasActed(boolean hasActed) {
+        this.hasActed = hasActed;
+    }
+
     // --- アクション実行メソッド ---
+
+    /**
+     * チェックアクションを実行します。
+     * @param game ゲームインスタンス
+     */
+    public void doCheck(TexasHoldemGame game) {
+        new Action(this, Action.Type.CHECK).execute(game);
+    }
+
+    /**
+     * コールアクションを実行します。
+     * @param game ゲームインスタンス
+     */
+    public void doCall(TexasHoldemGame game) {
+        new Action(this, Action.Type.CALL).execute(game);
+    }
 
     /**
      * ベットアクションを実行します。
@@ -211,11 +261,12 @@ public class Player {
     }
 
     /**
-     * コール（またはチェック）アクションを実行します。
+     * レイズアクションを実行します。
      * @param game ゲームインスタンス
+     * @param amount レイズ額（追加で支払う額）
      */
-    public void doCall(TexasHoldemGame game) {
-        new Action(this, Action.Type.CALL).execute(game);
+    public void doRaise(TexasHoldemGame game, int amount) {
+        new Action(this, Action.Type.RAISE, amount).execute(game);
     }
 
     /**

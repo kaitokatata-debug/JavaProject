@@ -43,50 +43,73 @@ public class Action {
     public void execute(TexasHoldemGame game) {
         if (player.isFolded()) return;
 
-        String actionText = null;
+        String actionText;
 
         switch (type) {
             case FOLD:
-                player.fold();
-                actionText = "Fold";
-                game.log(player.getName() + " folds");
+                actionText = performFold(game);
                 break;
 
             case CALL:
             case CHECK:
-                int currentHighest = game.getCurrentHighestBet();
-                int amountToCall = currentHighest - player.getCurrentBet();
-                if (amountToCall > 0) {
-                    player.bet(amountToCall);
-                    actionText = "Call";
-                    game.log(player.getName() + " calls " + amountToCall);
-                } else {
-                    actionText = "Check";
-                    game.log(player.getName() + " checks");
-                }
+                actionText = performCallOrCheck(game);
                 break;
 
             case BET:
             case RAISE:
-                player.bet(amount);
-                if (player.getCurrentBet() > game.getCurrentHighestBet()) {
-                    game.setCurrentHighestBet(player.getCurrentBet());
-                }
-                actionText = (type == Type.BET ? "Bet " : "Raise ") + amount;
-                game.log(player.getName() + " bets " + amount + " (Total: " + player.getCurrentBet() + ")");
+                actionText = performBetOrRaise(game);
                 break;
 
             case ALL_IN:
-                int allInAmount = player.getChips();
-                player.bet(allInAmount);
-                if (player.getCurrentBet() > game.getCurrentHighestBet()) {
-                    game.setCurrentHighestBet(player.getCurrentBet());
-                }
-                actionText = "All In";
-                game.log(player.getName() + " goes ALL-IN (" + allInAmount + ")");
+                actionText = performAllIn(game);
                 break;
+            
+            default:
+                throw new IllegalStateException("Unexpected value: " + type);
         }
         player.setLastAction(actionText);
+        game.onPlayerAction(player);
+    }
+
+    private String performFold(TexasHoldemGame game) {
+        player.fold();
+        game.log(player.getName() + " folds");
+        return "Fold";
+    }
+
+    private String performCallOrCheck(TexasHoldemGame game) {
+        int currentHighest = game.getCurrentHighestBet();
+        int amountToCall = currentHighest - player.getCurrentBet();
+        
+        if (amountToCall > 0) {
+            player.bet(amountToCall);
+            game.log(player.getName() + " calls " + amountToCall);
+            return "Call";
+        } else {
+            game.log(player.getName() + " checks");
+            return "Check";
+        }
+    }
+
+    private String performBetOrRaise(TexasHoldemGame game) {
+        player.bet(amount);
+        if (player.getCurrentBet() > game.getCurrentHighestBet()) {
+            game.setCurrentHighestBet(player.getCurrentBet());
+        }
+        
+        String verb = (type == Type.BET) ? "bets" : "raises";
+        game.log(player.getName() + " " + verb + " " + amount + " (Total: " + player.getCurrentBet() + ")");
+        return (type == Type.BET ? "Bet " : "Raise ") + amount;
+    }
+
+    private String performAllIn(TexasHoldemGame game) {
+        int allInAmount = player.getChips();
+        player.bet(allInAmount);
+        if (player.getCurrentBet() > game.getCurrentHighestBet()) {
+            game.setCurrentHighestBet(player.getCurrentBet());
+        }
+        game.log(player.getName() + " goes ALL-IN (" + allInAmount + ")");
+        return "All In";
     }
 
     /**
@@ -111,14 +134,15 @@ public class Action {
                 return amount > 0 && amount <= player.getChips();
 
             case RAISE:
-                if (amount <= 0 || amount > player.getChips()) {
-                    return false;
-                }
-                return (player.getCurrentBet() + amount) > game.getCurrentHighestBet();
+                return amount > 0 
+                    && amount <= player.getChips() 
+                    && ((player.getCurrentBet() + amount) >= game.getCurrentHighestBet() * 2 || amount == player.getChips());
 
             case ALL_IN:
                 return player.getChips() > 0;
+            
+            default:
+                return false;
         }
-        return false;
     }
 }

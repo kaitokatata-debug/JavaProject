@@ -131,4 +131,17 @@ class CardsTest {
         boolean hasC1C2 = combinations.stream().anyMatch(l -> l.contains(c1) && l.contains(c2));
         assertTrue(hasC1C2);
     }
+
+    @Test
+    void testRemoveCard() {
+        Card c1 = Card.valueOf(Suit.SPADES, Rank.ACE);
+        Card c2 = Card.valueOf(Suit.HEARTS, Rank.KING);
+        cards.addCard(c1);
+        cards.addCard(c2);
+        
+        Card removed = cards.removeCardAtIndex(0);
+        assertEquals(c1, removed);
+        assertEquals(1, cards.size());
+        assertEquals(c2, cards.getCards().get(0));
+    }
 }

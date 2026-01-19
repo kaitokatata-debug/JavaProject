@@ -9,7 +9,7 @@
 <html>
 <head>
     <title>結果画面</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="<%= request.getContextPath() %>/css/style.css">
 </head>
 <body>
         <%-- 画面右上に名前を表示するコード --%>
@@ -33,7 +33,7 @@
     <h1>結果画面</h1>
     <p>こんにちは、<%= name == null ? "ゲスト" : name %> さん！</p>
     <% if (gameResult != null) { %>
-        <h2 style="color: <%= "You Win!".equals(gameResult) ? "#2ecc71" : "#e74c3c" %>; font-size: 2.5em; margin: 20px 0;">
+        <h2 class="result-message <%= "You Win!".equals(gameResult) ? "result-win" : "result-lose" %>">
             <%= gameResult %>
         </h2>
     <% } %>

@@ -384,4 +384,115 @@ class HandEvaluatorTest {
         assertEquals(HandRank.TWO_PAIR, hand2.getRank());
         assertEquals(0, hand1.compareTo(hand2), "Pocket pair lower than board pairs should be counterfeited");
     }
+
+    @Test
+    void testHighCardKicker() {
+        // Player 1: A, 6. Board: K, 8, 7, 5, 2. Hand: A, K, 8, 7, 6.
+        HoleCards hole1 = new HoleCards();
+        hole1.addCard(Card.valueOf(Suit.SPADES, Rank.ACE));
+        hole1.addCard(Card.valueOf(Suit.HEARTS, Rank.SIX));
+
+        // Player 2: A, 4. Board: K, 8, 7, 5, 2. Hand: A, K, 8, 7, 5.
+        HoleCards hole2 = new HoleCards();
+        hole2.addCard(Card.valueOf(Suit.CLUBS, Rank.ACE));
+        hole2.addCard(Card.valueOf(Suit.DIAMONDS, Rank.FOUR));
+
+        CommunityCards comm = new CommunityCards();
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.KING));
+        comm.addCard(Card.valueOf(Suit.HEARTS, Rank.EIGHT));
+        comm.addCard(Card.valueOf(Suit.DIAMONDS, Rank.SEVEN));
+        comm.addCard(Card.valueOf(Suit.CLUBS, Rank.FIVE));
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.TWO));
+
+        Hand hand1 = HandEvaluator.evaluate(hole1, comm);
+        Hand hand2 = HandEvaluator.evaluate(hole2, comm);
+
+        assertEquals(HandRank.HIGH_CARD, hand1.getRank());
+        assertEquals(HandRank.HIGH_CARD, hand2.getRank());
+        assertTrue(hand1.compareTo(hand2) > 0, "5th kicker (6 vs 5) should decide winner");
+    }
+
+    @Test
+    void testTwoPairKicker() {
+        // Board: K, K, Q, Q, 2
+        // P1: A, 3 -> KKQQ A
+        // P2: J, 3 -> KKQQ J
+        HoleCards hole1 = new HoleCards();
+        hole1.addCard(Card.valueOf(Suit.SPADES, Rank.ACE));
+        hole1.addCard(Card.valueOf(Suit.HEARTS, Rank.THREE));
+
+        HoleCards hole2 = new HoleCards();
+        hole2.addCard(Card.valueOf(Suit.CLUBS, Rank.JACK));
+        hole2.addCard(Card.valueOf(Suit.DIAMONDS, Rank.THREE));
+
+        CommunityCards comm = new CommunityCards();
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.KING));
+        comm.addCard(Card.valueOf(Suit.HEARTS, Rank.KING));
+        comm.addCard(Card.valueOf(Suit.DIAMONDS, Rank.QUEEN));
+        comm.addCard(Card.valueOf(Suit.CLUBS, Rank.QUEEN));
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.TWO));
+
+        Hand hand1 = HandEvaluator.evaluate(hole1, comm);
+        Hand hand2 = HandEvaluator.evaluate(hole2, comm);
+
+        assertEquals(HandRank.TWO_PAIR, hand1.getRank());
+        assertEquals(HandRank.TWO_PAIR, hand2.getRank());
+        assertTrue(hand1.compareTo(hand2) > 0, "Kicker A should beat Kicker J in Two Pair");
+    }
+
+    @Test
+    void testThreeOfAKindKicker() {
+        // Board: 8, 8, 8, 5, 2
+        // P1: A, K -> 888 AK
+        // P2: A, Q -> 888 AQ
+        HoleCards hole1 = new HoleCards();
+        hole1.addCard(Card.valueOf(Suit.SPADES, Rank.ACE));
+        hole1.addCard(Card.valueOf(Suit.HEARTS, Rank.KING));
+
+        HoleCards hole2 = new HoleCards();
+        hole2.addCard(Card.valueOf(Suit.CLUBS, Rank.ACE));
+        hole2.addCard(Card.valueOf(Suit.DIAMONDS, Rank.QUEEN));
+
+        CommunityCards comm = new CommunityCards();
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.EIGHT));
+        comm.addCard(Card.valueOf(Suit.HEARTS, Rank.EIGHT));
+        comm.addCard(Card.valueOf(Suit.DIAMONDS, Rank.EIGHT));
+        comm.addCard(Card.valueOf(Suit.CLUBS, Rank.FIVE));
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.TWO));
+
+        Hand hand1 = HandEvaluator.evaluate(hole1, comm);
+        Hand hand2 = HandEvaluator.evaluate(hole2, comm);
+
+        assertEquals(HandRank.THREE_OF_A_KIND, hand1.getRank());
+        assertEquals(HandRank.THREE_OF_A_KIND, hand2.getRank());
+        assertTrue(hand1.compareTo(hand2) > 0, "Second kicker K should beat Q in Three of a Kind");
+    }
+
+    @Test
+    void testFourOfAKindKicker() {
+        // Board: 9, 9, 9, 9, 2
+        // P1: A, 3 -> 9999 A
+        // P2: K, 3 -> 9999 K
+        HoleCards hole1 = new HoleCards();
+        hole1.addCard(Card.valueOf(Suit.SPADES, Rank.ACE));
+        hole1.addCard(Card.valueOf(Suit.HEARTS, Rank.THREE));
+
+        HoleCards hole2 = new HoleCards();
+        hole2.addCard(Card.valueOf(Suit.CLUBS, Rank.KING));
+        hole2.addCard(Card.valueOf(Suit.DIAMONDS, Rank.THREE));
+
+        CommunityCards comm = new CommunityCards();
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.NINE));
+        comm.addCard(Card.valueOf(Suit.HEARTS, Rank.NINE));
+        comm.addCard(Card.valueOf(Suit.DIAMONDS, Rank.NINE));
+        comm.addCard(Card.valueOf(Suit.CLUBS, Rank.NINE));
+        comm.addCard(Card.valueOf(Suit.SPADES, Rank.TWO));
+
+        Hand hand1 = HandEvaluator.evaluate(hole1, comm);
+        Hand hand2 = HandEvaluator.evaluate(hole2, comm);
+
+        assertEquals(HandRank.FOUR_OF_A_KIND, hand1.getRank());
+        assertEquals(HandRank.FOUR_OF_A_KIND, hand2.getRank());
+        assertTrue(hand1.compareTo(hand2) > 0, "Kicker A should beat Kicker K in Four of a Kind");
+    }
 }

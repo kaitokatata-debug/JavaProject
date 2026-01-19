@@ -1,6 +1,5 @@
 package poker;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,11 +15,10 @@ import poker.cards.CommunityCards;
  */
 public class Table {
 
-    private final List<Player> players;
+    private final PlayerManager playerManager;
     private final Deck deck;
     private final Pot pot;
     private final CommunityCards communityCards;
-    private int dealerButtonPosition;
     private int currentHighestBet; // 現在の最高ベット額
     private State state; // ゲームの状態
 
@@ -29,11 +27,10 @@ public class Table {
      * 各コンポーネントを初期化します。
      */
     public Table() {
-        this.players = new ArrayList<>();
+        this.playerManager = new PlayerManager();
         this.deck = new Deck();
         this.pot = new Pot();
         this.communityCards = new CommunityCards();
-        this.dealerButtonPosition = -1; // ゲーム開始前
         this.currentHighestBet = 0;
         this.state = State.WAITING;
     }
@@ -43,7 +40,7 @@ public class Table {
      * @param player 追加するプレイヤー
      */
     public void addPlayer(Player player) {
-        players.add(player);
+        playerManager.addPlayer(player);
     }
 
     /**
@@ -55,35 +52,36 @@ public class Table {
         pot.clear();
         communityCards.clear();
         deck.initialize();
-        for (Player player : players) {
-            player.clearHand();
-        }
-        moveDealerButton();
+        playerManager.clearHands();
+        playerManager.moveDealerButton();
         currentHighestBet = 0;
         this.state = State.DEALING;
     }
 
     /**
+     * テーブルの状態をリセットします（ディーラーボタン位置など）。
+     */
+    public void reset() {
+        playerManager.reset();
+    }
+
+    /**
      * ディーラーボタンを次のプレイヤーに移動させます。
-     * プレイヤーリストのインデックスを循環させます。
+     * チップを持っている（ゲームに参加可能な）プレイヤーを探して移動します。
      */
     public void moveDealerButton() {
-        if (!players.isEmpty()) {
-            // チップが0のプレイヤーはスキップするなど、より高度なロジックも可能
-            dealerButtonPosition = (dealerButtonPosition + 1) % players.size();
-        }
+        playerManager.moveDealerButton();
     }
 
     /**
      * 各プレイヤーにホールカード（手札）を2枚ずつ配ります。
      */
     public void dealHoleCards() {
-        // ディーラーボタンの次のプレイヤー（スモールブラインド）から配り始める
-        int startIndex = (dealerButtonPosition + 1) % players.size();
+        int startIndex = (playerManager.getDealerButtonPosition() + 1) % playerManager.getPlayers().size();
         // 1枚ずつ2周配る
         for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < players.size(); j++) {
-                Player currentPlayer = players.get((startIndex + j) % players.size());
+            for (int j = 0; j < playerManager.getPlayers().size(); j++) {
+                Player currentPlayer = playerManager.getPlayers().get((startIndex + j) % playerManager.getPlayers().size());
                 // チップが0より多いアクティブなプレイヤーにのみ配る
                 if (currentPlayer.getChips() > 0) { 
                     currentPlayer.addCard(deck.draw());
@@ -130,9 +128,7 @@ public class Table {
      * @return アクティブなプレイヤーのリスト
      */
     public List<Player> getActivePlayers() {
-        return players.stream()
-                      .filter(p -> !p.isFolded())
-                      .collect(Collectors.toList());
+        return playerManager.getActivePlayers();
     }
 
     /**
@@ -141,7 +137,7 @@ public class Table {
      */
     public void endBettingRound() {
         // 1. 現在のベット額を収集（0より大きいもの）
-        List<Integer> bets = players.stream()
+        List<Integer> bets = playerManager.getPlayers().stream()
                 .map(Player::getCurrentBet)
                 .filter(bet -> bet > 0)
                 .distinct()
@@ -155,7 +151,7 @@ public class Table {
             int sliceAmount = 0;
             Set<Player> eligibleForSlice = new HashSet<>();
 
-            for (Player p : players) {
+            for (Player p : playerManager.getPlayers()) {
                 if (p.getCurrentBet() >= bet) {
                     sliceAmount += delta;
                     if (!p.isFolded()) {
@@ -186,16 +182,24 @@ public class Table {
             prevBet = bet;
         }
 
-        for (Player p : players) {
+        for (Player p : playerManager.getPlayers()) {
             p.resetBet();
         }
         currentHighestBet = 0;
     }
 
+    /**
+     * ターンを次のプレイヤーに進めます。
+     * フォールドしているプレイヤーや、チップがない（オールイン済み）プレイヤーはスキップします。
+     */
+    public void nextTurn() {
+        playerManager.nextTurn();
+    }
+
     // --- Getters ---
 
     public List<Player> getPlayers() {
-        return players;
+        return playerManager.getPlayers();
     }
 
     public Deck getDeck() {
@@ -211,7 +215,7 @@ public class Table {
     }
 
     public int getDealerButtonPosition() {
-        return dealerButtonPosition;
+        return playerManager.getDealerButtonPosition();
     }
 
     public int getCurrentHighestBet() {
@@ -228,5 +232,17 @@ public class Table {
 
     public void setState(State state) {
         this.state = state;
+    }
+
+    public int getCurrentPlayerIndex() {
+        return playerManager.getCurrentPlayerIndex();
+    }
+
+    public void setCurrentPlayerIndex(int currentPlayerIndex) {
+        playerManager.setCurrentPlayerIndex(currentPlayerIndex);
+    }
+
+    public Player getCurrentPlayer() {
+        return playerManager.getCurrentPlayer();
     }
 }

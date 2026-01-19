@@ -1,14 +1,8 @@
 package poker;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import playingcards.Card;
-import poker.cards.CommunityCards;
-import poker.cards.Hand;
-import poker.cards.HandEvaluator;
 
 /**
  * テキサスホールデムのゲーム進行を管理するクラス。
@@ -21,6 +15,14 @@ public class TexasHoldemGame {
     public TexasHoldemGame() {
         this.logger = new Logger();
         this.table = new Table();
+    }
+
+    /**
+     * ロガーを設定します。テスト時に使用します。
+     * @param logger ロガー
+     */
+    public void setLogger(Logger logger) {
+        this.logger = logger;
     }
 
     /**
@@ -62,6 +64,22 @@ public class TexasHoldemGame {
         table.getPot().addSubPot(new Pot.SubPot());
         
         table.dealHoleCards();
+
+        // 最初のプレイヤー（ディーラーの次）にターンを回す
+        table.setCurrentPlayerIndex(table.getDealerButtonPosition());
+        table.nextTurn();
+    }
+
+    /**
+     * ゲームをリセットします。
+     * 全プレイヤーのチップを初期値に戻し、ゲームの状態を初期化して新しいラウンドを開始します。
+     */
+    public void resetGame() {
+        table.reset();
+        for (Player player : table.getPlayers()) {
+            player.resetChips();
+        }
+        startNewRound();
     }
 
     /**
@@ -138,92 +156,79 @@ public class TexasHoldemGame {
      * ハンドの途中で勝者が決まった場合（他の全員がフォールド）もこのメソッドで処理します。
      */
     public void executeShowdown() {
-        table.setState(State.SHOWDOWN);
-        log("--- Showdown ---");
+        new ShowdownManager(table, logger).execute();
+    }
 
+    /**
+     * プレイヤーのアクションが完了した後に呼び出され、ゲームを進行させます。
+     * @param player アクションを行ったプレイヤー
+     */
+    public void onPlayerAction(Player player) {
+        player.setHasActed(true);
+
+        if (isBettingRoundFinished()) {
+            endBettingRound();
+            
+            if (table.getActivePlayers().size() <= 1) {
+                executeShowdown();
+            } else {
+                advanceState();
+            }
+
+            // ショーダウンでなければ次のラウンドの準備
+            if (getState() != State.SHOWDOWN) {
+                // ディーラーボタンの位置からリセットして次のプレイヤーへ
+                table.setCurrentPlayerIndex(table.getDealerButtonPosition());
+                table.nextTurn();
+            }
+        } else {
+            // ラウンド継続、次のプレイヤーへ
+            table.nextTurn();
+        }
+    }
+
+    /**
+     * 現在のベッティングラウンドが終了したかどうかを判定します。
+     * 全員がアクション済みで、かつベット額が揃っている（またはオールイン）場合に終了とみなします。
+     */
+    private boolean isBettingRoundFinished() {
         List<Player> activePlayers = table.getActivePlayers();
         
-        // 1人しか残っていない場合（不戦勝）
-        if (activePlayers.size() == 1) {
-            handleWalkover(activePlayers.get(0));
-            return;
+        // 1人しか残っていない場合は終了（不戦勝処理へ）
+        if (activePlayers.size() <= 1) {
+            return true;
         }
 
-        // 全プレイヤーの役を判定
-        Map<Player, Hand> playerHands = evaluateHands(activePlayers);
+        for (Player p : activePlayers) {
+            // オールインしているプレイヤーは無視（これ以上アクションできないため）
+            if (p.getChips() == 0) continue;
 
-        // 各サブポットを分配
-        List<Pot.SubPot> subPots = table.getPot().getSubPots();
-        for (int i = 0; i < subPots.size(); i++) {
-            resolvePot(subPots.get(i), playerHands, i + 1);
-        }
-    }
-
-    private void handleWalkover(Player winner) {
-        int totalPot = table.getPot().getTotalAmount();
-        log(winner.getName() + " is the last player remaining and wins the pot of " + totalPot);
-        winner.winChips(totalPot);
-        table.getPot().clear();
-    }
-
-    private Map<Player, Hand> evaluateHands(List<Player> players) {
-        Map<Player, Hand> playerHands = new HashMap<>();
-        CommunityCards communityCards = table.getCommunityCards();
-        for (Player player : players) {
-            Hand hand = HandEvaluator.evaluate(player.getHoleCards(), communityCards);
-            player.setBestHand(hand);
-            playerHands.put(player, hand);
-            log(player.getName() + "'s hand: " + hand);
-        }
-        return playerHands;
-    }
-
-    private void resolvePot(Pot.SubPot subPot, Map<Player, Hand> playerHands, int potIndex) {
-        if (subPot.getAmount() == 0) return;
-
-        log("Evaluating Pot #" + potIndex + " (" + subPot.getAmount() + ")");
-
-        List<Player> contenders = subPot.getEligiblePlayers().stream()
-                                        .filter(playerHands::containsKey)
-                                        .collect(Collectors.toList());
-
-        if (contenders.isEmpty()) {
-            log("No contenders for Pot #" + potIndex);
-            return;
-        }
-
-        // 最強のハンドを見つける
-        Hand bestHand = contenders.stream()
-                .map(playerHands::get)
-                .max(Hand::compareTo)
-                .orElse(null);
-
-        // 最強ハンドを持つプレイヤー（複数可）を抽出
-        List<Player> winners = contenders.stream()
-                .filter(p -> playerHands.get(p).compareTo(bestHand) == 0)
-                .collect(Collectors.toList());
-
-        distributePot(subPot, winners, bestHand, potIndex);
-    }
-
-    private void distributePot(Pot.SubPot subPot, List<Player> winners, Hand bestHand, int potIndex) {
-        if (!winners.isEmpty()) {
-            int prize = subPot.getAmount() / winners.size();
-            int remainder = subPot.getAmount() % winners.size();
-
-            String winnerNames = winners.stream().map(Player::getName).collect(Collectors.joining(", "));
-            log("Pot #" + potIndex + " of " + subPot.getAmount() + " goes to " + winnerNames + " with " + bestHand);
-
-            for (Player winner : winners) {
-                winner.setWinner(true);
-                winner.winChips(prize);
-            }
-            // 端数は最初の勝者に渡す
-            if (remainder > 0) {
-                winners.get(0).winChips(remainder);
-                log(winners.get(0).getName() + " receives the remainder of " + remainder);
+            // まだアクションしていない、または最高ベット額に足りていないプレイヤーがいれば終了しない
+            if (!p.hasActed() || p.getCurrentBet() != table.getCurrentHighestBet()) {
+                return false;
             }
         }
+
+        return true;
+    }
+
+    /**
+     * 指定されたプレイヤーがAIの場合、自動でアクションを実行します。
+     * @param player 現在のターンのプレイヤー
+     */
+    public void processAiTurn(Player player) {
+        if (player.isBot() && player instanceof AIPlayer) {
+            ((AIPlayer) player).performTurn(this);
+        }
+    }
+
+    /**
+     * プレイヤーのベットオプションを計算して返します。
+     * @param player 対象プレイヤー
+     * @return ベットオプション
+     */
+    public BettingOptions getBettingOptions(Player player) {
+        return new BettingCalculator(table).calculate(player);
     }
 
     // Web表示用のGetterメソッド
@@ -250,6 +255,12 @@ public class TexasHoldemGame {
      * @return 最高ベット額
      */
     public int getCurrentHighestBet() { return table.getCurrentHighestBet(); }
+
+    /**
+     * ディーラーボタンの位置（プレイヤーインデックス）を取得します。
+     * @return ディーラーボタンの位置
+     */
+    public int getDealerButtonPosition() { return table.getDealerButtonPosition(); }
 
     /**
      * テーブル情報を取得します。
