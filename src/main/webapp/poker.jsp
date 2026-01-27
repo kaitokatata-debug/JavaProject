@@ -12,6 +12,8 @@
     Player cpu = game.getPlayers().get(1);
     Boolean isCpuTurn = (Boolean) session.getAttribute("isCpuTurn");
     if (isCpuTurn == null) isCpuTurn = false;
+    Integer actionCount = (Integer) session.getAttribute("actionCount");
+    if (actionCount == null) actionCount = 0;
 %>
 <html>
 <head>
@@ -92,6 +94,7 @@
         /* Game Container */
         .game-container {
             max-width: 900px;
+            min-height: 600px; /* ログエリア確保のため高さをある程度確保 */
             margin: 0 auto;
             background-color: #34495e;
             padding: 20px;
@@ -115,13 +118,24 @@
             margin-bottom: 15px;
         }
 
+        /* アクションカウンター */
+        .action-counter {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ecf0f1;
+            font-weight: bold;
+            font-size: 1.2em;
+            z-index: 10;
+        }
+
         /* ポーカーテーブルのデザイン */
         .poker-table {
             background-color: #27ae60;
             border: 15px solid #1e8449;
             border-radius: 100px; /* 楕円形っぽく */
             padding: 40px;
-            margin: 20px auto;
+            margin: 20px 20px 20px 260px; /* 左側にログエリア分のスペースを空ける */
             position: relative;
             text-align: center;
         }
@@ -235,31 +249,19 @@
             color: #ddd;
             font-style: italic;
         }
-
-        /* コントロールエリア（右寄せ） */
-        /* 右下パネル（コントロール＋ログ） */
-        .bottom-right-panel {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 10px;
-            max-width: 300px;
-            z-index: 100;
-        }
-
+        
         /* コントロールエリア */
         .controls {
             background: rgba(255,255,255,0.1);
-            padding: 5px;
+            padding: 10px;
             border-radius: 6px;
-            position: absolute;
-            bottom: 30px;
-            right: 40px;
+            /* テーブルの下、中央に配置 */
             position: relative;
-            width: auto;
+            margin: 0 auto;
+            width: fit-content;
+            display: flex;
+            justify-content: center;
+            position: relative;
         }
         .controls.disabled {
             pointer-events: none;
@@ -302,7 +304,8 @@
             display: none;
             position: absolute;
             bottom: 110%;
-            right: 0;
+            left: 50%;
+            transform: translateX(-50%); /* 中央揃え */
             background: rgba(44, 62, 80, 0.95);
             padding: 20px;
             border-radius: 12px;
@@ -396,18 +399,19 @@
 
         /* Logs */
         .log-area {
-            margin-top: 20px;
-            margin-top: 0;
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            bottom: 20px;
+            width: 220px;
             background: rgba(0,0,0,0.3);
             padding: 10px;
             border-radius: 5px;
-            max-height: 150px;
             overflow-y: auto;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 0.9em;
             color: #ecf0f1;
             text-align: left;
-            width: 100%;
             box-sizing: border-box;
         }
 
@@ -525,6 +529,14 @@
     <div class="game-container">
         <h1>Texas Hold'em</h1>
         <a href="result.jsp" class="back-link">戻る</a>
+        <div class="action-counter"><%= actionCount %>回</div>
+
+        <!-- Game Log (左側に配置) -->
+        <div class="log-area">
+            <% for(String log : game.getLogs()) { %>
+                <div><%= log %></div>
+            <% } %>
+        </div>
 
         <% if (request.getAttribute("error") != null) { %>
             <div class="error-message">
@@ -617,7 +629,7 @@
             </div>
         </div>
 
-        <!-- Controls (Moved outside of the table) -->
+        <!-- Controls (テーブルの下に配置) -->
         <div class="controls <%= isCpuTurn ? "disabled" : "" %>">
             <form action="poker" method="post">
                 <% if (game.getState() == State.SHOWDOWN) { %>
@@ -629,107 +641,45 @@
                         <button type="submit" name="action" value="call" class="btn btn-check">Check / Call</button>
                         <button type="button" onclick="toggleBetMenu()" class="btn btn-bet">Bet / Raise ...</button>
                     </div>
-        <!-- Controls and Logs Wrapper -->
-        <div class="bottom-right-panel">
-            <!-- Controls -->
-            <div class="controls <%= isCpuTurn ? "disabled" : "" %>">
-                <form action="poker" method="post">
-                    <% if (game.getState() == State.SHOWDOWN) { %>
-                        <button type="submit" name="action" value="next" class="btn btn-next">Next Round</button>
-                    <% } else { %>
-                        <!-- メインアクションボタン -->
-                        <div id="main-actions">
-                            <button type="submit" name="action" value="fold" class="btn btn-fold">Fold</button>
-                            <button type="submit" name="action" value="call" class="btn btn-check">Check / Call</button>
-                            <button type="button" onclick="toggleBetMenu()" class="btn btn-bet">Bet / Raise ...</button>
-                        </div>
 
-                    <%
-                        // ベット額の計算ロジックをGameクラスに移譲
-                        BettingOptions opts = game.getBettingOptions(human);
-                        int minAmount = opts.getMinAmount();
-                        int maxAmount = opts.getMaxAmount();
-                        int halfPotAmount = opts.getHalfPotAmount();
-                        int potAmount = opts.getPotAmount();
-                    %>
-                        <%
-                            // ベット額の計算ロジックをGameクラスに移譲
-                            BettingOptions opts = game.getBettingOptions(human);
-                            int minAmount = opts.getMinAmount();
-                            int maxAmount = opts.getMaxAmount();
-                            int halfPotAmount = opts.getHalfPotAmount();
-                            int potAmount = opts.getPotAmount();
-                        %>
+                <%
+                    // ベット額の計算ロジックをGameクラスに移譲
+                    BettingOptions opts = game.getBettingOptions(human);
+                    int minAmount = opts.getMinAmount();
+                    int maxAmount = opts.getMaxAmount();
+                    int halfPotAmount = opts.getHalfPotAmount();
+                    int potAmount = opts.getPotAmount();
+                %>
 
-                    <!-- ベットメニュー（ポップアップ風に表示） -->
-                    <div id="bet-menu" class="bet-menu">
-                        <div class="bet-menu-content">
-                            <div class="bet-label">Bet Amount</div>
-                            <input type="number" name="amount" id="bet-input" class="bet-input" 
-                                   value="<%= minAmount %>" 
-                                   min="<%= minAmount %>" 
-                                   max="<%= maxAmount %>" 
-                                   oninput="syncSlider(this.value)">
-                            <input type="range" id="bet-slider" class="bet-slider" 
-                                   min="<%= minAmount %>" 
-                                   max="<%= maxAmount %>" 
-                                   value="<%= minAmount %>" 
-                                   oninput="syncInput(this.value)">
-                            
-                            <div class="bet-presets">
-                                <button type="button" onclick="setBet(<%= minAmount %>)" class="btn-preset">Min</button>
-                                <button type="button" onclick="setBet(<%= halfPotAmount %>)" class="btn-preset">1/2 Pot</button>
-                                <button type="button" onclick="setBet(<%= potAmount %>)" class="btn-preset">Pot</button>
-                                <button type="button" onclick="setBet(<%= maxAmount %>)" class="btn-preset btn-allin">All In</button>
-                        <!-- ベットメニュー（ポップアップ風に表示） -->
-                        <div id="bet-menu" class="bet-menu">
-                            <div class="bet-menu-content">
-                                <div class="bet-label">Bet Amount</div>
-                                <input type="number" name="amount" id="bet-input" class="bet-input" 
-                                       value="<%= minAmount %>" 
-                                       min="<%= minAmount %>" 
-                                       max="<%= maxAmount %>" 
-                                       oninput="syncSlider(this.value)">
-                                <input type="range" id="bet-slider" class="bet-slider" 
-                                       min="<%= minAmount %>" 
-                                       max="<%= maxAmount %>" 
-                                       value="<%= minAmount %>" 
-                                       oninput="syncInput(this.value)">
-                                
-                                <div class="bet-presets">
-                                    <button type="button" onclick="setBet(<%= minAmount %>)" class="btn-preset">Min</button>
-                                    <button type="button" onclick="setBet(<%= halfPotAmount %>)" class="btn-preset">1/2 Pot</button>
-                                    <button type="button" onclick="setBet(<%= potAmount %>)" class="btn-preset">Pot</button>
-                                    <button type="button" onclick="setBet(<%= maxAmount %>)" class="btn-preset btn-allin">All In</button>
-                                </div>
-                                
-                                <button type="submit" name="action" value="bet" class="btn-confirm">Confirm</button>
-                                <button type="button" onclick="toggleBetMenu()" class="btn-cancel">Cancel</button>
-                            </div>
-                            
-                            <button type="submit" name="action" value="bet" class="btn-confirm">Confirm</button>
-                            <button type="button" onclick="toggleBetMenu()" class="btn-cancel">Cancel</button>
+                <!-- ベットメニュー（ポップアップ風に表示） -->
+                <div id="bet-menu" class="bet-menu">
+                    <div class="bet-menu-content">
+                        <div class="bet-label">Bet Amount</div>
+                        <input type="number" name="amount" id="bet-input" class="bet-input" 
+                               value="<%= minAmount %>" 
+                               min="<%= minAmount %>" 
+                               max="<%= maxAmount %>" 
+                               oninput="syncSlider(this.value)">
+                        <input type="range" id="bet-slider" class="bet-slider" 
+                               min="<%= minAmount %>" 
+                               max="<%= maxAmount %>" 
+                               value="<%= minAmount %>" 
+                               oninput="syncInput(this.value)">
+                        
+                        <div class="bet-presets">
+                            <button type="button" onclick="setBet(<%= minAmount %>)" class="btn-preset">Min</button>
+                            <button type="button" onclick="setBet(<%= halfPotAmount %>)" class="btn-preset">1/2 Pot</button>
+                            <button type="button" onclick="setBet(<%= potAmount %>)" class="btn-preset">Pot</button>
+                            <button type="button" onclick="setBet(<%= maxAmount %>)" class="btn-preset btn-allin">All In</button>
                         </div>
+                        
+                        <button type="submit" name="action" value="bet" class="btn-confirm">Confirm</button>
+                        <button type="button" onclick="toggleBetMenu()" class="btn-cancel">Cancel</button>
                     </div>
-                    <% } %>
-                </form>
-            </div>
-
-            <!-- Game Log -->
-            <div class="log-area">
-                <% for(String log : game.getLogs()) { %>
-                    <div><%= log %></div>
                 <% } %>
             </form>
-            </div>
         </div>
 
-        <!-- Game Log -->
-        <div class="log-area">
-            <% for(String log : game.getLogs()) { %>
-                <div><%= log %></div>
-            <% } %>
-        </div>
     </div>
 
     <%-- オールイン時の自動進行用スクリプト --%>

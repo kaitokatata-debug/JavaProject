@@ -45,6 +45,7 @@ public class PokerServlet extends HttpServlet {
             game.addPlayer(new AIPlayer("CPU", 1000));
             
             session.setAttribute("pokerGame", game);
+            session.setAttribute("actionCount", 0);
             
             game.startNewRound();
             checkCpuTurn(session, game);
@@ -54,6 +55,7 @@ public class PokerServlet extends HttpServlet {
         Boolean isCpuTurn = (Boolean) session.getAttribute("isCpuTurn");
         if (isCpuTurn != null && isCpuTurn) {
             game.processAiTurn(game.getTable().getCurrentPlayer());
+            incrementActionCount(session);
             checkCpuTurn(session, game); // アクション後の状態を再チェック
         }
 
@@ -82,6 +84,7 @@ public class PokerServlet extends HttpServlet {
 
         if ("reset".equals(action)) {
             game.resetGame();
+            session.setAttribute("actionCount", 0);
             checkCpuTurn(session, game);
             resp.sendRedirect("poker");
             return;
@@ -167,6 +170,7 @@ public class PokerServlet extends HttpServlet {
                 return false;
             }
             playerAction.execute(game);
+            incrementActionCount(session);
         }
         return true;
     }
@@ -183,5 +187,11 @@ public class PokerServlet extends HttpServlet {
         Integer userId = (Integer) session.getAttribute("userId");
         ScoreRepository repository = new ScoreRepository();
         repository.saveScore(name, score, userId, "Poker");
+    }
+
+    private void incrementActionCount(HttpSession session) {
+        Integer count = (Integer) session.getAttribute("actionCount");
+        if (count == null) count = 0;
+        session.setAttribute("actionCount", count + 1);
     }
 }
